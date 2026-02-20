@@ -44,21 +44,20 @@ export const signOut = async () => {
   if (error) console.error('Error al cerrar sesión:', error)
 }
 
-// Helper para logging de auditoría
-export const logAudit = async (actionType, tableAffected, recordId, details) => {
-  const user = await getCurrentUser()
-  
-  const { error } = await supabase
-    .from('audit_log')
-    .insert({
-      id_user: user?.id,
-      action_type: actionType,
-      table_affected: tableAffected,
-      record_id: recordId,
-      details: details
-    })
-  
-  if (error) {
-    console.error('Error logging audit:', error)
-  }
+// Helper para obtener la fecha local en formato YYYY-MM-DD
+// (evita el problema de toISOString() que usa UTC y puede dar la fecha del día siguiente en Venezuela UTC-4)
+export const getLocalDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Helper para obtener el primer día del mes actual en formato YYYY-MM-DD
+export const getFirstDayOfMonth = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}-01`
 }

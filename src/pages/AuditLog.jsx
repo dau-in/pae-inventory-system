@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function AuditLog() {
@@ -8,8 +8,8 @@ function AuditLog() {
   const [filters, setFilters] = useState({
     action_type: '',
     table_affected: '',
-    desde: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
-    hasta: new Date().toISOString().split('T')[0]
+    desde: (() => { const d = new Date(); d.setDate(d.getDate() - 7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })(),
+    hasta: getLocalDate()
   })
 
   useEffect(() => {
@@ -95,10 +95,10 @@ function AuditLog() {
       csv += `"${timestamp}","${user}","${log.action_type}","${log.table_affected || '-'}","${log.record_id || '-'}","${details}"\n`
     })
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `auditoria_${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `auditoria_${getLocalDate()}.csv`
     link.click()
   }
 

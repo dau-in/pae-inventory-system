@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getCurrentUser } from '../supabaseClient'
+import { supabase, getCurrentUser, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function MenuDiario() {
@@ -10,7 +10,7 @@ function MenuDiario() {
   const [porciones, setPorciones] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getLocalDate(),
     id_asistencia: '',
     notas: ''
   })
@@ -169,6 +169,24 @@ function MenuDiario() {
     try {
       const user = await getCurrentUser()
 
+      // Verificar stock suficiente antes de crear el menú
+      const stockInsuficiente = []
+      for (const det of detalles) {
+        const product = products.find(p => p.id_product === parseInt(det.id_product))
+        const cantidadNecesaria = parseFloat(det.cantidad_real_usada) || parseFloat(det.cantidad_planificada)
+        if (product && cantidadNecesaria > product.stock) {
+          stockInsuficiente.push(
+            `${product.product_name}: necesita ${cantidadNecesaria} ${product.unit_measure}, stock disponible: ${product.stock}`
+          )
+        }
+      }
+
+      if (stockInsuficiente.length > 0) {
+        alert('Stock insuficiente para los siguientes productos:\n\n' + stockInsuficiente.join('\n'))
+        setLoading(false)
+        return
+      }
+
       // Crear menú
       const { data: menuData, error: menuError } = await supabase
         .from('menu_diario')
@@ -228,7 +246,7 @@ function MenuDiario() {
 
   const resetForm = () => {
     setFormData({
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getLocalDate(),
       id_asistencia: '',
       notas: ''
     })

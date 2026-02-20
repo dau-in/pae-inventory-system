@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function Dashboard() {
@@ -32,20 +32,26 @@ function Dashboard() {
       // Productos próximos a vencer (30 días)
       const thirtyDaysFromNow = new Date()
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+      const limitDate = `${thirtyDaysFromNow.getFullYear()}-${String(thirtyDaysFromNow.getMonth()+1).padStart(2,'0')}-${String(thirtyDaysFromNow.getDate()).padStart(2,'0')}`
       const { count: expiringSoon } = await supabase
         .from('product')
         .select('*', { count: 'exact', head: true })
         .not('expiration_date', 'is', null)
-        .lte('expiration_date', thirtyDaysFromNow.toISOString().split('T')[0])
+        .lte('expiration_date', limitDate)
 
-      // Asistencia de hoy
-      const today = new Date().toISOString().split('T')[0]
-      const { data: todayData } = await supabase
+      // Asistencia de hoy - CORRECCIÓN: usar maybeSingle() en vez de single()
+      const today = getLocalDate()
+      const { data: todayData, error: attendanceError } = await supabase
         .from('asistencia_diaria')
         .select('total_alumnos')
         .eq('fecha', today)
-        .single()
+        .maybeSingle() // ✅ CAMBIO AQUÍ: maybeSingle() permite que no haya datos
 
+      // No lanzar error si no hay asistencia registrada
+      if (attendanceError && attendanceError.code !== 'PGRST116') {
+        console.error('Error cargando asistencia:', attendanceError)
+      }
+        
       // Actividad reciente (últimos 10 registros de auditoría)
       const { data: activity } = await supabase
         .from('audit_log')
@@ -80,7 +86,7 @@ function Dashboard() {
         totalProducts: totalProducts || 0,
         lowStock: lowStock || 0,
         expiringSoon: expiringSoon || 0,
-        todayAttendance: todayData?.total_alumnos || 0
+        todayAttendance: todayData?.total_alumnos || 0 // Si no hay datos, será 0
       })
 
       setRecentActivity(activityWithUsers)
@@ -119,7 +125,9 @@ function Dashboard() {
         <div className="card">
           <h3 className="text-lg font-semibold mb-2">👥 Asistencia Hoy</h3>
           <p className="text-2xl font-bold text-success">{stats.todayAttendance}</p>
-          <p className="text-sm text-secondary">Alumnos presentes</p>
+          <p className="text-sm text-secondary">
+            {stats.todayAttendance === 0 ? 'Sin registro' : 'Alumnos presentes'}
+          </p>
         </div>
       </div>
 
@@ -147,9 +155,13 @@ function Dashboard() {
                       <span className={`badge ${
                         log.action_type === 'INSERT' ? 'badge-success' :
                         log.action_type === 'UPDATE' ? 'badge-warning' :
+                        log.action_type === 'APPROVE' ? 'badge-success' :
+                        log.action_type === 'REJECT' ? 'badge-danger' :
                         'badge-danger'
                       }`}>
-                        {log.action_type}
+                        {log.action_type === 'APPROVE' ? 'APROBAR' :
+                         log.action_type === 'REJECT' ? 'RECHAZAR' :
+                         log.action_type}
                       </span>
                     </td>
                     <td>{log.table_affected}</td>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase, getLocalDate, getFirstDayOfMonth } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function Reportes() {
@@ -7,8 +7,8 @@ function Reportes() {
   const [reportType, setReportType] = useState('stock')
   const [reportData, setReportData] = useState([])
   const [dateRange, setDateRange] = useState({
-    desde: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    hasta: new Date().toISOString().split('T')[0]
+    desde: getFirstDayOfMonth(),
+    hasta: getLocalDate()
   })
 
   useEffect(() => {
@@ -61,7 +61,7 @@ function Reportes() {
       .select(`
         *,
         product(product_name, unit_measure),
-        guia_entrada(numero_guia, fecha)
+        guia_entrada(numero_guia_sunagro, fecha)
       `)
       .gte('fecha', dateRange.desde)
       .lte('fecha', dateRange.hasta)
@@ -89,12 +89,13 @@ function Reportes() {
   const loadVencimientosReport = async () => {
     const thirtyDaysFromNow = new Date()
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+    const limitDate = `${thirtyDaysFromNow.getFullYear()}-${String(thirtyDaysFromNow.getMonth()+1).padStart(2,'0')}-${String(thirtyDaysFromNow.getDate()).padStart(2,'0')}`
 
     const { data, error } = await supabase
       .from('product')
       .select('*, category(category_name)')
       .not('expiration_date', 'is', null)
-      .lte('expiration_date', thirtyDaysFromNow.toISOString().split('T')[0])
+      .lte('expiration_date', limitDate)
       .order('expiration_date', { ascending: true })
 
     if (error) throw error
@@ -102,32 +103,39 @@ function Reportes() {
   }
 
   const loadConsumoReport = async () => {
+    // Consultar menus en el rango de fechas y traer sus detalles
     const { data, error } = await supabase
-      .from('menu_detalle')
+      .from('menu_diario')
       .select(`
-        *,
-        product(product_name, unit_measure),
-        menu_diario(fecha)
+        fecha,
+        menu_detalle(
+          id_product,
+          cantidad_real_usada,
+          product(product_name, unit_measure)
+        )
       `)
-      .gte('menu_diario.fecha', dateRange.desde)
-      .lte('menu_diario.fecha', dateRange.hasta)
+      .gte('fecha', dateRange.desde)
+      .lte('fecha', dateRange.hasta)
 
     if (error) throw error
 
     // Agrupar por producto
     const grouped = {}
-    data?.forEach(item => {
-      const productId = item.id_product
-      if (!grouped[productId]) {
-        grouped[productId] = {
-          product_name: item.product.product_name,
-          unit_measure: item.product.unit_measure,
-          total: 0,
-          veces: 0
+    data?.forEach(menu => {
+      menu.menu_detalle?.forEach(item => {
+        if (!item.product) return
+        const productId = item.id_product
+        if (!grouped[productId]) {
+          grouped[productId] = {
+            product_name: item.product.product_name,
+            unit_measure: item.product.unit_measure,
+            total: 0,
+            veces: 0
+          }
         }
-      }
-      grouped[productId].total += parseFloat(item.cantidad_real_usada || 0)
-      grouped[productId].veces += 1
+        grouped[productId].total += parseFloat(item.cantidad_real_usada || 0)
+        grouped[productId].veces += 1
+      })
     })
 
     setReportData(Object.values(grouped))
@@ -143,7 +151,7 @@ function Reportes() {
 
   const exportToCSV = () => {
     let csv = ''
-    let filename = `reporte_${reportType}_${new Date().toISOString().split('T')[0]}.csv`
+    let filename = `reporte_${reportType}_${getLocalDate()}.csv`
 
     switch (reportType) {
       case 'stock':
@@ -155,7 +163,7 @@ function Reportes() {
       case 'entradas':
         csv = 'Fecha,Guía,Producto,Cantidad,Unidad\n'
         reportData.forEach(item => {
-          csv += `${item.fecha},"${item.guia_entrada?.numero_guia || '-'}","${item.product?.product_name}",${item.amount},${item.product?.unit_measure}\n`
+          csv += `${item.fecha},"${item.guia_entrada?.numero_guia_sunagro || '-'}","${item.product?.product_name}",${item.amount},${item.product?.unit_measure}\n`
         })
         break
       case 'salidas':
@@ -179,7 +187,7 @@ function Reportes() {
         break
     }
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = filename
@@ -286,7 +294,7 @@ function Reportes() {
                   {reportData.map((item) => (
                     <tr key={item.id_input}>
                       <td>{new Date(item.fecha).toLocaleDateString('es-VE')}</td>
-                      <td>{item.guia_entrada?.numero_guia || '-'}</td>
+                      <td>{item.guia_entrada?.numero_guia_sunagro || '-'}</td>
                       <td>{item.product?.product_name}</td>
                       <td className="font-semibold">{item.amount} {item.product?.unit_measure}</td>
                     </tr>

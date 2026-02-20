@@ -45,6 +45,14 @@ function Layout() {
           <NavLink to="/guias-entrada" className={({ isActive }) => isActive ? 'active' : ''}>
             📋 Guías de Entrada
           </NavLink>
+          {/* BOTÓN NUEVO: APROBAR GUÍAS */}
+          {/* Se verifica que el id_rol sea 1 (Admin) o 3 (Director) */}
+          {(userData?.id_rol === 1 || userData?.id_rol === 3) && (
+            <NavLink to="/aprobar-guias" className={({ isActive }) => isActive ? 'active' : ''}>
+              ✅ Aprobar Guías
+            </NavLink>
+          )}
+          {/* --------------------------- */}
           <NavLink to="/asistencia" className={({ isActive }) => isActive ? 'active' : ''}>
             👥 Asistencia
           </NavLink>

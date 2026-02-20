@@ -75,10 +75,11 @@ function Products() {
       }
 
       if (editingProduct) {
-        // Actualizar
+        // Al actualizar, no enviar stock (se controla via entradas/salidas)
+        const { stock, ...dataWithoutStock } = dataToSubmit
         const { error } = await supabase
           .from('product')
-          .update(dataToSubmit)
+          .update(dataWithoutStock)
           .eq('id_product', editingProduct.id_product)
 
         if (error) throw error
@@ -215,15 +216,21 @@ function Products() {
               </div>
 
               <div className="form-group">
-                <label>Stock inicial</label>
+                <label>{editingProduct ? 'Stock actual (solo lectura)' : 'Stock inicial'}</label>
                 <input
                   type="number"
                   step="0.01"
                   name="stock"
                   value={formData.stock}
                   onChange={handleInputChange}
-                  required
+                  required={!editingProduct}
+                  disabled={!!editingProduct}
                 />
+                {editingProduct && (
+                  <p className="text-sm text-secondary mt-1">
+                    El stock se modifica mediante guías de entrada y menús diarios
+                  </p>
+                )}
               </div>
 
               <div className="form-group">

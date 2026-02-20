@@ -12,6 +12,7 @@ import MenuDiario from './pages/MenuDiario'
 import Porciones from './pages/Porciones'
 import Reportes from './pages/Reportes'
 import AuditLog from './pages/AuditLog'
+import AprobarGuias from './pages/AprobarGuias'
 
 // Importar componentes
 import Layout from './components/Layout'
@@ -63,6 +64,7 @@ function App() {
             <Route path="/porciones" element={<Porciones />} />
             <Route path="/reportes" element={<Reportes />} />
             <Route path="/auditoria" element={<AuditLog />} />
+            <Route path="/aprobar-guias" element={<AprobarGuias />} />
           </Route>
         </Route>
 

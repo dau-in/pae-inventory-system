@@ -1,8 +1,11 @@
 -- =====================================================
 -- SCHEMA SQL COMPLETO PARA SUPABASE
 -- Sistema de Inventario PAE
+-- Escuela Nacional Maestro Carlos González
+-- Última actualización: 2026-02-20
 -- =====================================================
 
+-- =====================================================
 -- PASO 1: Crear tablas principales
 -- =====================================================
 
@@ -63,19 +66,25 @@ CREATE TABLE IF NOT EXISTS product (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabla de guías de entrada
+-- Tabla de guías de entrada (con sistema de aprobación maker-checker)
 CREATE TABLE IF NOT EXISTS guia_entrada (
     id_guia SERIAL PRIMARY KEY,
-    numero_guia TEXT NOT NULL,
-    codigo_sunagro TEXT,
+    numero_guia_sunagro TEXT NOT NULL,
+    numero_guia_sisecal TEXT,
     fecha DATE DEFAULT CURRENT_DATE,
-    inspector TEXT,
-    vocera TEXT,
+    vocera_nombre TEXT,
     telefono_vocera TEXT,
     notas TEXT,
-    created_by UUID REFERENCES auth.users(id),
+    estado TEXT DEFAULT 'Pendiente' CHECK (estado IN ('Pendiente', 'Aprobada', 'Rechazada')),
+    aprobado_por UUID REFERENCES users(id_user),
+    fecha_aprobacion TIMESTAMPTZ,
+    comentarios_aprobacion TEXT,
+    created_by UUID REFERENCES users(id_user),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Índice para búsquedas por estado
+CREATE INDEX IF NOT EXISTS idx_guia_entrada_estado ON guia_entrada(estado);
 
 -- Tabla de entradas (detalles de guía)
 CREATE TABLE IF NOT EXISTS input (
@@ -83,10 +92,14 @@ CREATE TABLE IF NOT EXISTS input (
     id_guia INTEGER REFERENCES guia_entrada(id_guia) ON DELETE CASCADE,
     id_product INTEGER REFERENCES product(id_product),
     amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
-    unit_amount INTEGER, -- cantidad en unidades si aplica
+    unit_amount INTEGER, -- cantidad en bultos si aplica
+    lotes_detalle JSONB, -- [{cantidad, fecha_vencimiento}]
     fecha DATE DEFAULT CURRENT_DATE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Índice GIN para búsquedas en lotes JSONB
+CREATE INDEX IF NOT EXISTS idx_input_lotes_detalle ON input USING GIN (lotes_detalle);
 
 -- Tabla de porciones por producto
 CREATE TABLE IF NOT EXISTS receta_porcion (
@@ -141,11 +154,11 @@ CREATE TABLE IF NOT EXISTS output (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tabla de auditoría (OBLIGATORIA)
+-- Tabla de auditoría
 CREATE TABLE IF NOT EXISTS audit_log (
     id_log SERIAL PRIMARY KEY,
     id_user UUID REFERENCES auth.users(id),
-    action_type TEXT NOT NULL,
+    action_type TEXT NOT NULL, -- INSERT, UPDATE, DELETE, APPROVE, REJECT
     table_affected TEXT,
     record_id INTEGER,
     details TEXT,
@@ -166,43 +179,40 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para products
+-- Trigger para products updated_at
 DROP TRIGGER IF EXISTS update_product_updated_at ON product;
 CREATE TRIGGER update_product_updated_at
     BEFORE UPDATE ON product
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Función para actualizar stock al crear entrada
-CREATE OR REPLACE FUNCTION update_stock_on_input()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE product
-    SET stock = stock + NEW.amount
-    WHERE id_product = NEW.id_product;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger para actualizar stock en entradas
-DROP TRIGGER IF EXISTS trigger_update_stock_input ON input;
-CREATE TRIGGER trigger_update_stock_input
-    AFTER INSERT ON input
-    FOR EACH ROW
-    EXECUTE FUNCTION update_stock_on_input();
+-- NOTA: El trigger automático de stock en input fue ELIMINADO.
+-- El stock de entrada se actualiza SOLO mediante la función aprobar_guia().
+-- La función antigua fue renombrada a update_stock_on_input_OLD() como referencia.
 
 -- Función para actualizar stock al crear salida
+-- Usa SELECT FOR UPDATE para evitar race conditions
 CREATE OR REPLACE FUNCTION update_stock_on_output()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_stock_actual NUMERIC(10,2);
 BEGIN
+    -- Bloquear la fila del producto para evitar modificaciones concurrentes
+    SELECT stock INTO v_stock_actual
+    FROM product
+    WHERE id_product = NEW.id_product
+    FOR UPDATE;
+
+    -- Verificar stock ANTES de restar
+    IF v_stock_actual < NEW.amount THEN
+        RAISE EXCEPTION 'Stock insuficiente para el producto %. Stock actual: %, solicitado: %',
+            NEW.id_product, v_stock_actual, NEW.amount;
+    END IF;
+
     UPDATE product
     SET stock = stock - NEW.amount
     WHERE id_product = NEW.id_product;
-    
-    IF (SELECT stock FROM product WHERE id_product = NEW.id_product) < 0 THEN
-        RAISE EXCEPTION 'Stock insuficiente para el producto %', NEW.id_product;
-    END IF;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -214,17 +224,15 @@ CREATE TRIGGER trigger_update_stock_output
     FOR EACH ROW
     EXECUTE FUNCTION update_stock_on_output();
 
--- Función genérica para logging automático (versión corregida)
+-- Función genérica para logging automático
 CREATE OR REPLACE FUNCTION log_audit()
 RETURNS TRIGGER AS $$
 DECLARE
     record_id_value INTEGER;
 BEGIN
-    -- Extraer el ID del registro según la tabla
     record_id_value := NULL;
-    
+
     IF (TG_OP = 'INSERT') THEN
-        -- Intentar extraer el ID de forma segura
         BEGIN
             IF TG_TABLE_NAME = 'product' THEN
                 record_id_value := NEW.id_product;
@@ -238,19 +246,12 @@ BEGIN
         EXCEPTION WHEN OTHERS THEN
             record_id_value := NULL;
         END;
-        
+
         INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
-        VALUES (
-            auth.uid(),
-            'INSERT',
-            TG_TABLE_NAME,
-            record_id_value,
-            row_to_json(NEW)::text
-        );
+        VALUES (auth.uid(), 'INSERT', TG_TABLE_NAME, record_id_value, row_to_json(NEW)::text);
         RETURN NEW;
-        
+
     ELSIF (TG_OP = 'UPDATE') THEN
-        -- Intentar extraer el ID de forma segura
         BEGIN
             IF TG_TABLE_NAME = 'product' THEN
                 record_id_value := NEW.id_product;
@@ -264,19 +265,13 @@ BEGIN
         EXCEPTION WHEN OTHERS THEN
             record_id_value := NULL;
         END;
-        
+
         INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
-        VALUES (
-            auth.uid(),
-            'UPDATE',
-            TG_TABLE_NAME,
-            record_id_value,
-            'Antes: ' || row_to_json(OLD)::text || ' | Después: ' || row_to_json(NEW)::text
-        );
+        VALUES (auth.uid(), 'UPDATE', TG_TABLE_NAME, record_id_value,
+            'Antes: ' || row_to_json(OLD)::text || ' | Después: ' || row_to_json(NEW)::text);
         RETURN NEW;
-        
+
     ELSIF (TG_OP = 'DELETE') THEN
-        -- Intentar extraer el ID de forma segura
         BEGIN
             IF TG_TABLE_NAME = 'product' THEN
                 record_id_value := OLD.id_product;
@@ -290,15 +285,9 @@ BEGIN
         EXCEPTION WHEN OTHERS THEN
             record_id_value := NULL;
         END;
-        
+
         INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
-        VALUES (
-            auth.uid(),
-            'DELETE',
-            TG_TABLE_NAME,
-            record_id_value,
-            row_to_json(OLD)::text
-        );
+        VALUES (auth.uid(), 'DELETE', TG_TABLE_NAME, record_id_value, row_to_json(OLD)::text);
         RETURN OLD;
     END IF;
 END;
@@ -322,7 +311,175 @@ CREATE TRIGGER audit_output AFTER INSERT OR UPDATE OR DELETE ON output
     FOR EACH ROW EXECUTE FUNCTION log_audit();
 
 -- =====================================================
--- PASO 3: Configurar Row Level Security (RLS)
+-- PASO 3: Funciones RPC para aprobación de guías
+-- =====================================================
+
+-- Función transaccional para aprobar guía y actualizar inventario
+CREATE OR REPLACE FUNCTION aprobar_guia(
+  p_id_guia INTEGER,
+  p_comentarios TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_input_record RECORD;
+  v_fecha_mas_cercana DATE;
+  v_total_productos INTEGER := 0;
+  v_guia_info RECORD;
+  v_user_role INTEGER;
+BEGIN
+  -- Verificar que el usuario tiene rol de Director(3) o Admin(1)
+  SELECT id_rol INTO v_user_role FROM users WHERE id_user = auth.uid();
+  IF v_user_role IS NULL OR v_user_role NOT IN (1, 3) THEN
+    RAISE EXCEPTION 'No tiene permisos para aprobar guías. Se requiere rol de Director o Administrador.';
+  END IF;
+
+  SELECT * INTO v_guia_info
+  FROM guia_entrada
+  WHERE id_guia = p_id_guia;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Guía con ID % no encontrada', p_id_guia;
+  END IF;
+
+  IF v_guia_info.estado != 'Pendiente' THEN
+    RAISE EXCEPTION 'La guía ya fue procesada. Estado actual: %', v_guia_info.estado;
+  END IF;
+
+  -- Actualizar estado de la guía
+  UPDATE guia_entrada
+  SET
+    estado = 'Aprobada',
+    aprobado_por = auth.uid(),
+    fecha_aprobacion = NOW(),
+    comentarios_aprobacion = p_comentarios
+  WHERE id_guia = p_id_guia;
+
+  -- Procesar cada producto de la guía
+  FOR v_input_record IN
+    SELECT i.*, p.unit_measure
+    FROM input i
+    JOIN product p ON i.id_product = p.id_product
+    WHERE i.id_guia = p_id_guia
+  LOOP
+    v_total_productos := v_total_productos + 1;
+
+    -- Sumar stock
+    UPDATE product
+    SET stock = stock + v_input_record.amount
+    WHERE id_product = v_input_record.id_product;
+
+    -- Si hay lotes, usar la fecha de vencimiento más cercana
+    IF v_input_record.lotes_detalle IS NOT NULL AND
+       jsonb_array_length(v_input_record.lotes_detalle) > 0 THEN
+
+      SELECT MIN((lote->>'fecha_vencimiento')::DATE)
+      INTO v_fecha_mas_cercana
+      FROM jsonb_array_elements(v_input_record.lotes_detalle) AS lote;
+
+      UPDATE product
+      SET expiration_date = v_fecha_mas_cercana
+      WHERE id_product = v_input_record.id_product;
+    END IF;
+  END LOOP;
+
+  -- Registrar en auditoría
+  INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
+  VALUES (
+    auth.uid(), 'APPROVE', 'guia_entrada', p_id_guia,
+    jsonb_build_object(
+      'numero_guia', v_guia_info.numero_guia_sunagro,
+      'productos_procesados', v_total_productos,
+      'comentarios', p_comentarios
+    )::text
+  );
+
+  RETURN json_build_object(
+    'success', true,
+    'id_guia', p_id_guia,
+    'productos_procesados', v_total_productos,
+    'mensaje', format('Guía %s aprobada exitosamente. %s productos actualizados en inventario.',
+      v_guia_info.numero_guia_sunagro, v_total_productos)
+  );
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE EXCEPTION 'Error al aprobar guía: %', SQLERRM;
+END;
+$$;
+
+-- Función para rechazar guía
+CREATE OR REPLACE FUNCTION rechazar_guia(
+  p_id_guia INTEGER,
+  p_motivo TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_guia_info RECORD;
+  v_user_role INTEGER;
+BEGIN
+  -- Verificar que el usuario tiene rol de Director(3) o Admin(1)
+  SELECT id_rol INTO v_user_role FROM users WHERE id_user = auth.uid();
+  IF v_user_role IS NULL OR v_user_role NOT IN (1, 3) THEN
+    RAISE EXCEPTION 'No tiene permisos para rechazar guías. Se requiere rol de Director o Administrador.';
+  END IF;
+
+  SELECT * INTO v_guia_info
+  FROM guia_entrada
+  WHERE id_guia = p_id_guia;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Guía con ID % no encontrada', p_id_guia;
+  END IF;
+
+  IF v_guia_info.estado != 'Pendiente' THEN
+    RAISE EXCEPTION 'La guía ya fue procesada. Estado actual: %', v_guia_info.estado;
+  END IF;
+
+  IF p_motivo IS NULL OR trim(p_motivo) = '' THEN
+    RAISE EXCEPTION 'Debe proporcionar un motivo para rechazar la guía';
+  END IF;
+
+  UPDATE guia_entrada
+  SET
+    estado = 'Rechazada',
+    aprobado_por = auth.uid(),
+    fecha_aprobacion = NOW(),
+    comentarios_aprobacion = p_motivo
+  WHERE id_guia = p_id_guia;
+
+  INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
+  VALUES (
+    auth.uid(), 'REJECT', 'guia_entrada', p_id_guia,
+    jsonb_build_object(
+      'numero_guia', v_guia_info.numero_guia_sunagro,
+      'motivo', p_motivo
+    )::text
+  );
+
+  RETURN json_build_object(
+    'success', true,
+    'id_guia', p_id_guia,
+    'mensaje', format('Guía %s rechazada.', v_guia_info.numero_guia_sunagro)
+  );
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE EXCEPTION 'Error al rechazar guía: %', SQLERRM;
+END;
+$$;
+
+-- Permisos para las funciones RPC
+GRANT EXECUTE ON FUNCTION aprobar_guia(INTEGER, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION rechazar_guia(INTEGER, TEXT) TO authenticated;
+
+-- =====================================================
+-- PASO 4: Configurar Row Level Security (RLS)
 -- =====================================================
 
 -- Habilitar RLS en todas las tablas
@@ -344,83 +501,82 @@ RETURNS INTEGER AS $$
     SELECT id_rol FROM users WHERE id_user = auth.uid();
 $$ LANGUAGE SQL SECURITY DEFINER;
 
--- Policies para users (solo admins pueden modificar)
+-- Policies para users
 CREATE POLICY "Users: Todos pueden ver" ON users FOR SELECT USING (true);
-CREATE POLICY "Users: Admins pueden insertar" ON users FOR INSERT 
+CREATE POLICY "Users: Admins pueden insertar" ON users FOR INSERT
     WITH CHECK (get_user_role() = 1);
-CREATE POLICY "Users: Admins pueden actualizar" ON users FOR UPDATE 
+CREATE POLICY "Users: Admins pueden actualizar" ON users FOR UPDATE
     USING (get_user_role() = 1);
 
--- Policies para products (todos leen, admin y cocinera escriben)
+-- Policies para products
 CREATE POLICY "Products: Todos pueden ver" ON product FOR SELECT USING (true);
-CREATE POLICY "Products: Admin y Cocinera pueden crear" ON product FOR INSERT 
+CREATE POLICY "Products: Admin y Cocinera pueden crear" ON product FOR INSERT
     WITH CHECK (get_user_role() IN (1, 2));
-CREATE POLICY "Products: Admin y Cocinera pueden actualizar" ON product FOR UPDATE 
+CREATE POLICY "Products: Admin y Cocinera pueden actualizar" ON product FOR UPDATE
     USING (get_user_role() IN (1, 2));
-CREATE POLICY "Products: Solo Admin puede borrar" ON product FOR DELETE 
+CREATE POLICY "Products: Solo Admin puede borrar" ON product FOR DELETE
     USING (get_user_role() = 1);
 
 -- Policies para category
 CREATE POLICY "Categories: Todos pueden ver" ON category FOR SELECT USING (true);
-CREATE POLICY "Categories: Admin puede modificar" ON category FOR ALL 
+CREATE POLICY "Categories: Admin puede modificar" ON category FOR ALL
     USING (get_user_role() = 1);
 
--- Policies para guia_entrada
-CREATE POLICY "Guias: Todos pueden ver" ON guia_entrada FOR SELECT USING (true);
-CREATE POLICY "Guias: Admin y Cocinera pueden crear" ON guia_entrada FOR INSERT 
-    WITH CHECK (get_user_role() IN (1, 2));
-CREATE POLICY "Guias: Admin puede modificar" ON guia_entrada FOR UPDATE 
-    USING (get_user_role() = 1);
+-- Policies para guia_entrada (actualizadas para sistema de aprobación)
+CREATE POLICY "guia_entrada_select" ON guia_entrada
+    FOR SELECT USING (true);
+CREATE POLICY "guia_entrada_insert" ON guia_entrada
+    FOR INSERT WITH CHECK (get_user_role() IN (1, 2));
+CREATE POLICY "guia_entrada_update" ON guia_entrada
+    FOR UPDATE USING (get_user_role() IN (1, 3));
 
 -- Policies para input
 CREATE POLICY "Input: Todos pueden ver" ON input FOR SELECT USING (true);
-CREATE POLICY "Input: Admin y Cocinera pueden crear" ON input FOR INSERT 
+CREATE POLICY "Input: Admin y Cocinera pueden crear" ON input FOR INSERT
     WITH CHECK (get_user_role() IN (1, 2));
 
 -- Policies para menu_diario
 CREATE POLICY "Menu: Todos pueden ver" ON menu_diario FOR SELECT USING (true);
-CREATE POLICY "Menu: Admin y Cocinera pueden crear" ON menu_diario FOR INSERT 
+CREATE POLICY "Menu: Admin y Cocinera pueden crear" ON menu_diario FOR INSERT
     WITH CHECK (get_user_role() IN (1, 2));
-CREATE POLICY "Menu: Admin y Cocinera pueden actualizar" ON menu_diario FOR UPDATE 
+CREATE POLICY "Menu: Admin y Cocinera pueden actualizar" ON menu_diario FOR UPDATE
     USING (get_user_role() IN (1, 2));
 
 -- Policies para menu_detalle
 CREATE POLICY "Menu detalle: Todos pueden ver" ON menu_detalle FOR SELECT USING (true);
-CREATE POLICY "Menu detalle: Admin y Cocinera pueden modificar" ON menu_detalle FOR ALL 
+CREATE POLICY "Menu detalle: Admin y Cocinera pueden modificar" ON menu_detalle FOR ALL
     USING (get_user_role() IN (1, 2));
 
 -- Policies para asistencia_diaria
 CREATE POLICY "Asistencia: Todos pueden ver" ON asistencia_diaria FOR SELECT USING (true);
-CREATE POLICY "Asistencia: Admin y Cocinera pueden crear" ON asistencia_diaria FOR INSERT 
+CREATE POLICY "Asistencia: Admin y Cocinera pueden crear" ON asistencia_diaria FOR INSERT
     WITH CHECK (get_user_role() IN (1, 2));
-CREATE POLICY "Asistencia: Admin y Cocinera pueden actualizar" ON asistencia_diaria FOR UPDATE 
+CREATE POLICY "Asistencia: Admin y Cocinera pueden actualizar" ON asistencia_diaria FOR UPDATE
+    USING (get_user_role() IN (1, 2));
+CREATE POLICY "Asistencia: Admin y Cocinera pueden eliminar" ON asistencia_diaria FOR DELETE
     USING (get_user_role() IN (1, 2));
 
 -- Policies para output
 CREATE POLICY "Output: Todos pueden ver" ON output FOR SELECT USING (true);
-CREATE POLICY "Output: Admin y Cocinera pueden crear" ON output FOR INSERT 
+CREATE POLICY "Output: Admin y Cocinera pueden crear" ON output FOR INSERT
     WITH CHECK (get_user_role() IN (1, 2));
 
--- Policies para audit_log (solo lectura para todos)
+-- Policies para audit_log
 CREATE POLICY "Audit: Todos pueden ver" ON audit_log FOR SELECT USING (true);
 
 -- Policies para receta_porcion
 CREATE POLICY "Porciones: Todos pueden ver" ON receta_porcion FOR SELECT USING (true);
-CREATE POLICY "Porciones: Admin y Cocinera pueden modificar" ON receta_porcion FOR ALL 
+CREATE POLICY "Porciones: Admin y Cocinera pueden modificar" ON receta_porcion FOR ALL
     USING (get_user_role() IN (1, 2));
 
 -- =====================================================
--- PASO 4: Crear vistas útiles
+-- PASO 5: Crear vistas útiles
 -- =====================================================
 
 -- Vista de productos con stock bajo
 CREATE OR REPLACE VIEW productos_stock_bajo AS
-SELECT 
-    p.id_product,
-    p.product_name,
-    p.stock,
-    p.unit_measure,
-    c.category_name
+SELECT
+    p.id_product, p.product_name, p.stock, p.unit_measure, c.category_name
 FROM product p
 LEFT JOIN category c ON p.id_category = c.id_category
 WHERE p.stock < 10
@@ -428,29 +584,20 @@ ORDER BY p.stock ASC;
 
 -- Vista de productos próximos a vencer
 CREATE OR REPLACE VIEW productos_por_vencer AS
-SELECT 
-    p.id_product,
-    p.product_name,
-    p.expiration_date,
-    p.stock,
-    p.unit_measure,
+SELECT
+    p.id_product, p.product_name, p.expiration_date, p.stock, p.unit_measure,
     (p.expiration_date - CURRENT_DATE) as dias_restantes
 FROM product p
-WHERE p.expiration_date IS NOT NULL 
+WHERE p.expiration_date IS NOT NULL
     AND p.expiration_date <= CURRENT_DATE + INTERVAL '30 days'
 ORDER BY p.expiration_date ASC;
 
 -- Vista de inventario completo
 CREATE OR REPLACE VIEW inventario_actual AS
-SELECT 
-    p.id_product,
-    p.product_name,
-    p.product_code,
-    p.stock,
-    p.unit_measure,
-    p.expiration_date,
-    c.category_name,
-    CASE 
+SELECT
+    p.id_product, p.product_name, p.product_code, p.stock, p.unit_measure,
+    p.expiration_date, c.category_name,
+    CASE
         WHEN p.stock < 10 THEN 'BAJO'
         WHEN p.stock < 50 THEN 'MEDIO'
         ELSE 'SUFICIENTE'
@@ -459,11 +606,38 @@ FROM product p
 LEFT JOIN category c ON p.id_category = c.id_category
 ORDER BY c.category_name, p.product_name;
 
+-- Vista de guías pendientes de aprobación
+CREATE OR REPLACE VIEW guias_pendientes AS
+SELECT
+    g.*,
+    u.full_name as creador_nombre,
+    COUNT(i.id_input) as total_productos
+FROM guia_entrada g
+LEFT JOIN users u ON g.created_by = u.id_user
+LEFT JOIN input i ON g.id_guia = i.id_guia
+WHERE g.estado = 'Pendiente'
+GROUP BY g.id_guia, u.full_name
+ORDER BY g.fecha DESC, g.created_at DESC;
+
+-- Vista de historial de aprobaciones
+CREATE OR REPLACE VIEW historial_aprobaciones AS
+SELECT
+    g.*,
+    u_creador.full_name as creador_nombre,
+    u_aprobador.full_name as aprobador_nombre,
+    COUNT(i.id_input) as total_productos
+FROM guia_entrada g
+LEFT JOIN users u_creador ON g.created_by = u_creador.id_user
+LEFT JOIN users u_aprobador ON g.aprobado_por = u_aprobador.id_user
+LEFT JOIN input i ON g.id_guia = i.id_guia
+WHERE g.estado IN ('Aprobada', 'Rechazada')
+GROUP BY g.id_guia, u_creador.full_name, u_aprobador.full_name
+ORDER BY g.fecha_aprobacion DESC;
+
 -- =====================================================
--- PASO 5: Datos de ejemplo (OPCIONAL - comentar si no quieres)
+-- PASO 6: Datos de ejemplo (OPCIONAL)
 -- =====================================================
 
--- Productos de ejemplo
 INSERT INTO product (product_name, product_code, stock, unit_measure, id_category, expiration_date) VALUES
     ('Arroz', 'ARR001', 100.00, 'kg', 3, CURRENT_DATE + INTERVAL '6 months'),
     ('Aceite de girasol', 'ACE001', 20.50, 'lt', 7, CURRENT_DATE + INTERVAL '1 year'),
@@ -475,7 +649,6 @@ INSERT INTO product (product_name, product_code, stock, unit_measure, id_categor
     ('Sal', 'SAL001', 10.00, 'kg', 8, NULL)
 ON CONFLICT DO NOTHING;
 
--- Porciones de ejemplo
 INSERT INTO receta_porcion (id_product, porciones_por_unidad, unit_measure) VALUES
     (1, 12.00, 'kg'),  -- 1 kg arroz = 12 porciones
     (3, 40.00, 'kg'),  -- 1 kg leche = 40 porciones
@@ -487,9 +660,3 @@ ON CONFLICT DO NOTHING;
 -- =====================================================
 -- FIN DEL SCHEMA
 -- =====================================================
-
--- Verificar creación exitosa
-SELECT 'Schema creado exitosamente!' as status;
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' 
-ORDER BY table_name;

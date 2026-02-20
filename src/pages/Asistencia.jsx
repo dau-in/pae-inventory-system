@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getCurrentUser } from '../supabaseClient'
+import { supabase, getCurrentUser, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function Asistencia() {
@@ -8,7 +8,7 @@ function Asistencia() {
   const [showForm, setShowForm] = useState(false)
   const [editingAsistencia, setEditingAsistencia] = useState(null)
   const [formData, setFormData] = useState({
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getLocalDate(),
     total_alumnos: '',
     notas: ''
   })
@@ -110,7 +110,7 @@ function Asistencia() {
 
   const resetForm = () => {
     setFormData({
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getLocalDate(),
       total_alumnos: '',
       notas: ''
     })

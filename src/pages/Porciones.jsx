@@ -6,6 +6,7 @@ function Porciones() {
   const [loading, setLoading] = useState(true)
   const [porciones, setPorciones] = useState([])
   const [products, setProducts] = useState([])
+  const [ultimaAsistencia, setUltimaAsistencia] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editingPorcion, setEditingPorcion] = useState(null)
   const [formData, setFormData] = useState({
@@ -18,8 +19,22 @@ function Porciones() {
   useEffect(() => {
     loadPorciones()
     loadProducts()
+    loadUltimaAsistencia()
   }, [])
 
+  const loadUltimaAsistencia = async () => {
+    try {
+      const { data } = await supabase
+        .from('asistencia_diaria')
+        .select('total_alumnos')
+        .order('fecha', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      setUltimaAsistencia(data?.total_alumnos || null)
+    } catch (error) {
+      console.error('Error cargando asistencia:', error)
+    }
+  }
   const loadPorciones = async () => {
     try {
       const { data, error } = await supabase
@@ -52,20 +67,20 @@ function Porciones() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
 
-    // Autocompletar unit_measure del producto seleccionado
+    // Si cambia el producto, autocompletar unit_measure en un solo setState
     if (name === 'id_product') {
       const product = products.find(p => p.id_product === parseInt(value))
-      if (product) {
-        setFormData(prev => ({
-          ...prev,
-          unit_measure: product.unit_measure
-        }))
-      }
+      setFormData(prev => ({
+        ...prev,
+        id_product: value,
+        unit_measure: product ? product.unit_measure : prev.unit_measure
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }))
     }
   }
 
@@ -173,7 +188,7 @@ function Porciones() {
       <div className="alert alert-warning mb-4">
         💡 <strong>¿Cómo funciona?</strong> Cuando crees un menú diario, el sistema calculará automáticamente 
         cuánto necesitas de cada producto basándose en estas configuraciones y la cantidad de alumnos.
-        <br/><strong>Ejemplo:</strong> Si 1 kg de arroz = 12 porciones y tienes 774 alumnos, 
+        <br/><strong>Ejemplo:</strong> Si 1 kg de arroz = 12 porciones y tienes {ultimaAsistencia || '---'} alumnos,
         el sistema calculará que necesitas 64.5 kg de arroz.
       </div>
 
@@ -279,9 +294,11 @@ function Porciones() {
               </thead>
               <tbody>
                 {porciones.map((porcion) => {
-                  const alumnosEjemplo = 774 // Matrícula de la escuela
-                  const cantidadNecesaria = (alumnosEjemplo / porcion.porciones_por_unidad).toFixed(2)
-                  
+                  const alumnosEjemplo = ultimaAsistencia || 0
+                  const cantidadNecesaria = alumnosEjemplo > 0
+                    ? (alumnosEjemplo / porcion.porciones_por_unidad).toFixed(2)
+                    : '-'
+
                   return (
                     <tr key={porcion.id_porcion}>
                       <td className="font-semibold">{porcion.product?.product_name}</td>
@@ -294,8 +311,14 @@ function Porciones() {
                         </span>
                       </td>
                       <td className="text-sm">
-                        Para {alumnosEjemplo} alumnos:<br/>
-                        <strong>{cantidadNecesaria} {porcion.unit_measure}</strong>
+                        {alumnosEjemplo > 0 ? (
+                          <>
+                            Para {alumnosEjemplo} alumnos:<br/>
+                            <strong>{cantidadNecesaria} {porcion.unit_measure}</strong>
+                          </>
+                        ) : (
+                          <span className="text-secondary">Sin asistencia registrada</span>
+                        )}
                       </td>
                       <td className="text-sm">{porcion.notas || '-'}</td>
                       <td>
