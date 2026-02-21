@@ -13,6 +13,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Crear el cliente de Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Cliente separado para crear usuarios sin afectar la sesión del Director
+const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { autoRefreshToken: false, persistSession: false }
+})
+
 // Helper para obtener el usuario actual
 export const getCurrentUser = async () => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -60,4 +65,34 @@ export const getFirstDayOfMonth = () => {
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   return `${year}-${month}-01`
+}
+
+// Helper para crear una cuenta de usuario (usa cliente separado para no cerrar sesión del Director)
+export const createUserAccount = async (email, password, fullName, username, idRol) => {
+  // 1. Crear usuario en auth.users con cliente separado
+  const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
+    email,
+    password,
+  })
+
+  if (authError) throw authError
+  if (!authData.user) throw new Error('No se pudo crear el usuario en autenticación')
+
+  // 2. Insertar en tabla users con el cliente principal (tiene permisos RLS del Director)
+  const { error: insertError } = await supabase
+    .from('users')
+    .insert({
+      id_user: authData.user.id,
+      username,
+      full_name: fullName,
+      id_rol: idRol,
+    })
+
+  if (insertError) {
+    // Si falla la inserción en users, el auth.user queda huérfano
+    // pero no podemos borrarlo sin service_role key
+    throw new Error('Usuario creado en autenticación pero falló al registrar en el sistema: ' + insertError.message)
+  }
+
+  return authData.user
 }

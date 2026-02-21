@@ -34,6 +34,12 @@ function Login() {
         throw new Error('Usuario no autorizado. Contacte al administrador.')
       }
 
+      // Verificar que el usuario esté activo
+      if (userData.is_active === false) {
+        await supabase.auth.signOut()
+        throw new Error('Su cuenta ha sido desactivada. Contacte al Director.')
+      }
+
       navigate('/')
     } catch (error) {
       setError(error.message)

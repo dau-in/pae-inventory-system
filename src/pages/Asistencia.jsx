@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getCurrentUser, getLocalDate } from '../supabaseClient'
+import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function Asistencia() {
@@ -7,6 +7,7 @@ function Asistencia() {
   const [asistencias, setAsistencias] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingAsistencia, setEditingAsistencia] = useState(null)
+  const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     fecha: getLocalDate(),
     total_alumnos: '',
@@ -15,6 +16,7 @@ function Asistencia() {
 
   useEffect(() => {
     loadAsistencias()
+    getUserData().then(data => setUserRole(data?.id_rol))
   }, [])
 
   const loadAsistencias = async () => {
@@ -124,15 +126,17 @@ function Asistencia() {
     <div>
       <div className="flex-between mb-4">
         <h2 className="text-2xl font-bold">Asistencia Diaria</h2>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? '❌ Cancelar' : '➕ Nueva Asistencia'}
-        </button>
+        {userRole !== 3 && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? '❌ Cancelar' : '➕ Nueva Asistencia'}
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && userRole !== 3 && (
         <div className="card mb-4">
           <h3 className="text-lg font-semibold mb-4">
             {editingAsistencia ? 'Editar Asistencia' : 'Nueva Asistencia'}
@@ -201,7 +205,7 @@ function Asistencia() {
                   <th>Fecha</th>
                   <th>Alumnos presentes</th>
                   <th>Notas</th>
-                  <th>Acciones</th>
+                  {userRole !== 3 && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -221,22 +225,24 @@ function Asistencia() {
                       </span>
                     </td>
                     <td className="text-sm">{asistencia.notas || '-'}</td>
-                    <td>
-                      <div className="flex gap-2">
-                        <button 
-                          className="btn btn-sm btn-primary"
-                          onClick={() => handleEdit(asistencia)}
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleDelete(asistencia.id_asistencia)}
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
+                    {userRole !== 3 && (
+                      <td>
+                        <div className="flex gap-2">
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleEdit(asistencia)}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(asistencia.id_asistencia)}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

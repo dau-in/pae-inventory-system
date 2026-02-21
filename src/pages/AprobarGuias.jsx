@@ -79,9 +79,9 @@ function AprobarGuias() {
   const handleAprobar = async () => {
     if (!guiaSeleccionada) return
 
-    // Verificar que es Director o Admin
-    if (userRole !== 1 && userRole !== 3) {
-      alert('❌ Solo el Director o Administrador puede aprobar guías')
+    // Verificar que es Director o Desarrollador
+    if (userRole !== 1 && userRole !== 4) {
+      alert('Solo el Director puede aprobar guías')
       return
     }
 
@@ -123,9 +123,9 @@ El stock de los productos ha sido incrementado y las fechas de vencimiento actua
       return
     }
 
-    // Verificar que es Director o Admin
-    if (userRole !== 1 && userRole !== 3) {
-      alert('❌ Solo el Director o Administrador puede rechazar guías')
+    // Verificar que es Director o Desarrollador
+    if (userRole !== 1 && userRole !== 4) {
+      alert('Solo el Director puede rechazar guías')
       return
     }
 
@@ -157,8 +157,8 @@ Motivo: ${comentarios}`)
 
   if (loading && guiasPendientes.length === 0) return <Loading />
 
-  // Verificar permisos
-  if (userRole !== null && userRole !== 1 && userRole !== 3) {
+  // Verificar permisos - solo Director o Desarrollador
+  if (userRole !== null && userRole !== 1 && userRole !== 4) {
     return (
       <div style={{ padding: '2rem' }}>
         <div style={{
@@ -170,7 +170,7 @@ Motivo: ${comentarios}`)
         }}>
           <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>🔒</p>
           <h3>Acceso Denegado</h3>
-          <p>Solo el Director o Administrador pueden aprobar guías.</p>
+          <p>Solo el Director puede aprobar guías.</p>
         </div>
       </div>
     )

@@ -2,7 +2,7 @@
 -- SCHEMA SQL COMPLETO PARA SUPABASE
 -- Sistema de Inventario PAE
 -- Escuela Nacional Maestro Carlos González
--- Última actualización: 2026-02-20
+-- Última actualización: 2026-02-21
 -- =====================================================
 
 -- =====================================================
@@ -18,9 +18,14 @@ CREATE TABLE IF NOT EXISTS rol (
 
 -- Insertar roles por defecto
 INSERT INTO rol (rol_name, description) VALUES
-    ('Administrador', 'Acceso completo al sistema'),
-    ('Cocinera', 'Puede registrar menús y ver inventario'),
-    ('Director', 'Solo lectura y reportes')
+    ('Director', 'Administrador del sistema escolar'),
+    ('Madre Procesadora', 'Gestión operativa de cocina e inventario'),
+    ('Supervisor', 'Solo lectura y supervisión')
+ON CONFLICT (rol_name) DO NOTHING;
+
+-- Rol Desarrollador (id_rol=4) - Administrador técnico, solo asignable desde la BD
+INSERT INTO rol (id_rol, rol_name, description)
+VALUES (4, 'Desarrollador', 'Administrador técnico del sistema - control total')
 ON CONFLICT (rol_name) DO NOTHING;
 
 -- Tabla de usuarios (extiende auth.users de Supabase)
@@ -29,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL,
     id_rol INTEGER REFERENCES rol(id_rol) DEFAULT 2,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -190,6 +196,79 @@ CREATE TRIGGER update_product_updated_at
 -- El stock de entrada se actualiza SOLO mediante la función aprobar_guia().
 -- La función antigua fue renombrada a update_stock_on_input_OLD() como referencia.
 
+-- Función de protección para UPDATE en users
+-- Jerarquía: Desarrollador(4) > Director(1) > Madre Procesadora(2) / Supervisor(3)
+CREATE OR REPLACE FUNCTION protect_director_users()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_actor_role INTEGER;
+BEGIN
+  SELECT id_rol INTO v_actor_role FROM users WHERE id_user = auth.uid();
+
+  -- Nadie puede modificarse a sí mismo desde gestión de usuarios
+  IF OLD.id_user = auth.uid() THEN
+    RAISE EXCEPTION 'No puede modificar su propia cuenta desde la gestión de usuarios.';
+  END IF;
+
+  -- Nadie puede modificar a un Desarrollador (solo desde BD directamente)
+  IF OLD.id_rol = 4 THEN
+    RAISE EXCEPTION 'No puede modificar la cuenta de un Desarrollador.';
+  END IF;
+
+  -- Un Director no puede modificar a otro Director
+  IF v_actor_role = 1 AND OLD.id_rol = 1 THEN
+    RAISE EXCEPTION 'Un Director no puede modificar a otro Director.';
+  END IF;
+
+  -- Nadie puede promover a Director excepto Desarrollador
+  IF NEW.id_rol = 1 AND OLD.id_rol != 1 AND v_actor_role != 4 THEN
+    RAISE EXCEPTION 'Solo el Desarrollador puede asignar el rol de Director.';
+  END IF;
+
+  -- Nadie puede asignar el rol Desarrollador
+  IF NEW.id_rol = 4 AND OLD.id_rol != 4 THEN
+    RAISE EXCEPTION 'El rol de Desarrollador solo se asigna desde la base de datos.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_protect_director ON users;
+CREATE TRIGGER trigger_protect_director
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION protect_director_users();
+
+-- Función de protección para INSERT en users
+-- Desarrollador puede crear Directores; Director solo puede crear roles 2 y 3; nadie crea Desarrolladores
+CREATE OR REPLACE FUNCTION protect_director_insert()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_actor_role INTEGER;
+BEGIN
+  SELECT id_rol INTO v_actor_role FROM users WHERE id_user = auth.uid();
+
+  -- Nadie puede crear un Desarrollador desde la app
+  IF NEW.id_rol = 4 THEN
+    RAISE EXCEPTION 'El rol de Desarrollador solo se asigna desde la base de datos.';
+  END IF;
+
+  -- Solo Desarrollador puede crear Directores
+  IF NEW.id_rol = 1 AND v_actor_role != 4 THEN
+    RAISE EXCEPTION 'Solo el Desarrollador puede crear usuarios con rol de Director.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_protect_director_insert ON users;
+CREATE TRIGGER trigger_protect_director_insert
+    BEFORE INSERT ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION protect_director_insert();
+
 -- Función para actualizar stock al crear salida
 -- Usa SELECT FOR UPDATE para evitar race conditions
 CREATE OR REPLACE FUNCTION update_stock_on_output()
@@ -330,10 +409,10 @@ DECLARE
   v_guia_info RECORD;
   v_user_role INTEGER;
 BEGIN
-  -- Verificar que el usuario tiene rol de Director(3) o Admin(1)
+  -- Verificar que el usuario tiene rol de Director(1) o Desarrollador(4)
   SELECT id_rol INTO v_user_role FROM users WHERE id_user = auth.uid();
-  IF v_user_role IS NULL OR v_user_role NOT IN (1, 3) THEN
-    RAISE EXCEPTION 'No tiene permisos para aprobar guías. Se requiere rol de Director o Administrador.';
+  IF v_user_role IS NULL OR v_user_role NOT IN (1, 4) THEN
+    RAISE EXCEPTION 'No tiene permisos para aprobar guías. Se requiere rol de Director o Desarrollador.';
   END IF;
 
   SELECT * INTO v_guia_info
@@ -423,10 +502,10 @@ DECLARE
   v_guia_info RECORD;
   v_user_role INTEGER;
 BEGIN
-  -- Verificar que el usuario tiene rol de Director(3) o Admin(1)
+  -- Verificar que el usuario tiene rol de Director(1) o Desarrollador(4)
   SELECT id_rol INTO v_user_role FROM users WHERE id_user = auth.uid();
-  IF v_user_role IS NULL OR v_user_role NOT IN (1, 3) THEN
-    RAISE EXCEPTION 'No tiene permisos para rechazar guías. Se requiere rol de Director o Administrador.';
+  IF v_user_role IS NULL OR v_user_role NOT IN (1, 4) THEN
+    RAISE EXCEPTION 'No tiene permisos para rechazar guías. Se requiere rol de Director o Desarrollador.';
   END IF;
 
   SELECT * INTO v_guia_info
@@ -503,63 +582,63 @@ $$ LANGUAGE SQL SECURITY DEFINER;
 
 -- Policies para users
 CREATE POLICY "Users: Todos pueden ver" ON users FOR SELECT USING (true);
-CREATE POLICY "Users: Admins pueden insertar" ON users FOR INSERT
-    WITH CHECK (get_user_role() = 1);
-CREATE POLICY "Users: Admins pueden actualizar" ON users FOR UPDATE
-    USING (get_user_role() = 1);
+CREATE POLICY "Users: Director puede insertar" ON users FOR INSERT
+    WITH CHECK (get_user_role() IN (1, 4));
+CREATE POLICY "Users: Director puede actualizar" ON users FOR UPDATE
+    USING (get_user_role() IN (1, 4));
 
 -- Policies para products
 CREATE POLICY "Products: Todos pueden ver" ON product FOR SELECT USING (true);
-CREATE POLICY "Products: Admin y Cocinera pueden crear" ON product FOR INSERT
-    WITH CHECK (get_user_role() IN (1, 2));
-CREATE POLICY "Products: Admin y Cocinera pueden actualizar" ON product FOR UPDATE
-    USING (get_user_role() IN (1, 2));
-CREATE POLICY "Products: Solo Admin puede borrar" ON product FOR DELETE
-    USING (get_user_role() = 1);
+CREATE POLICY "Products: Director y Madre Procesadora pueden crear" ON product FOR INSERT
+    WITH CHECK (get_user_role() IN (1, 2, 4));
+CREATE POLICY "Products: Director y Madre Procesadora pueden actualizar" ON product FOR UPDATE
+    USING (get_user_role() IN (1, 2, 4));
+CREATE POLICY "Products: Solo Director puede borrar" ON product FOR DELETE
+    USING (get_user_role() IN (1, 4));
 
 -- Policies para category
 CREATE POLICY "Categories: Todos pueden ver" ON category FOR SELECT USING (true);
 CREATE POLICY "Categories: Admin puede modificar" ON category FOR ALL
-    USING (get_user_role() = 1);
+    USING (get_user_role() IN (1, 4));
 
 -- Policies para guia_entrada (actualizadas para sistema de aprobación)
 CREATE POLICY "guia_entrada_select" ON guia_entrada
     FOR SELECT USING (true);
 CREATE POLICY "guia_entrada_insert" ON guia_entrada
-    FOR INSERT WITH CHECK (get_user_role() IN (1, 2));
+    FOR INSERT WITH CHECK (get_user_role() IN (1, 2, 4));
 CREATE POLICY "guia_entrada_update" ON guia_entrada
-    FOR UPDATE USING (get_user_role() IN (1, 3));
+    FOR UPDATE USING (get_user_role() IN (1, 4));
 
 -- Policies para input
 CREATE POLICY "Input: Todos pueden ver" ON input FOR SELECT USING (true);
 CREATE POLICY "Input: Admin y Cocinera pueden crear" ON input FOR INSERT
-    WITH CHECK (get_user_role() IN (1, 2));
+    WITH CHECK (get_user_role() IN (1, 2, 4));
 
 -- Policies para menu_diario
 CREATE POLICY "Menu: Todos pueden ver" ON menu_diario FOR SELECT USING (true);
 CREATE POLICY "Menu: Admin y Cocinera pueden crear" ON menu_diario FOR INSERT
-    WITH CHECK (get_user_role() IN (1, 2));
+    WITH CHECK (get_user_role() IN (1, 2, 4));
 CREATE POLICY "Menu: Admin y Cocinera pueden actualizar" ON menu_diario FOR UPDATE
-    USING (get_user_role() IN (1, 2));
+    USING (get_user_role() IN (1, 2, 4));
 
 -- Policies para menu_detalle
 CREATE POLICY "Menu detalle: Todos pueden ver" ON menu_detalle FOR SELECT USING (true);
 CREATE POLICY "Menu detalle: Admin y Cocinera pueden modificar" ON menu_detalle FOR ALL
-    USING (get_user_role() IN (1, 2));
+    USING (get_user_role() IN (1, 2, 4));
 
 -- Policies para asistencia_diaria
 CREATE POLICY "Asistencia: Todos pueden ver" ON asistencia_diaria FOR SELECT USING (true);
 CREATE POLICY "Asistencia: Admin y Cocinera pueden crear" ON asistencia_diaria FOR INSERT
-    WITH CHECK (get_user_role() IN (1, 2));
+    WITH CHECK (get_user_role() IN (1, 2, 4));
 CREATE POLICY "Asistencia: Admin y Cocinera pueden actualizar" ON asistencia_diaria FOR UPDATE
-    USING (get_user_role() IN (1, 2));
+    USING (get_user_role() IN (1, 2, 4));
 CREATE POLICY "Asistencia: Admin y Cocinera pueden eliminar" ON asistencia_diaria FOR DELETE
-    USING (get_user_role() IN (1, 2));
+    USING (get_user_role() IN (1, 2, 4));
 
 -- Policies para output
 CREATE POLICY "Output: Todos pueden ver" ON output FOR SELECT USING (true);
 CREATE POLICY "Output: Admin y Cocinera pueden crear" ON output FOR INSERT
-    WITH CHECK (get_user_role() IN (1, 2));
+    WITH CHECK (get_user_role() IN (1, 2, 4));
 
 -- Policies para audit_log
 CREATE POLICY "Audit: Todos pueden ver" ON audit_log FOR SELECT USING (true);
@@ -567,7 +646,7 @@ CREATE POLICY "Audit: Todos pueden ver" ON audit_log FOR SELECT USING (true);
 -- Policies para receta_porcion
 CREATE POLICY "Porciones: Todos pueden ver" ON receta_porcion FOR SELECT USING (true);
 CREATE POLICY "Porciones: Admin y Cocinera pueden modificar" ON receta_porcion FOR ALL
-    USING (get_user_role() IN (1, 2));
+    USING (get_user_role() IN (1, 2, 4));
 
 -- =====================================================
 -- PASO 5: Crear vistas útiles

@@ -23,3 +23,8 @@ src_backup_/
 # Temp files
 nul
 tmpclaude-*
+
+# Claude agent files
+.agents/
+.claude/
+skills-lock.json

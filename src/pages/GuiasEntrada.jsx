@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getCurrentUser, getLocalDate } from '../supabaseClient'
+import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function GuiasEntrada() {
@@ -7,6 +7,7 @@ function GuiasEntrada() {
   const [guias, setGuias] = useState([])
   const [products, setProducts] = useState([])
   const [showForm, setShowForm] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     numero_guia_sunagro: '',
     numero_guia_sisecal: '',
@@ -20,6 +21,7 @@ function GuiasEntrada() {
   useEffect(() => {
     loadGuias()
     loadProducts()
+    getUserData().then(data => setUserRole(data?.id_rol))
   }, [])
 
   const loadGuias = async () => {
@@ -274,23 +276,25 @@ Guía creada por: ${user.email}`)
             Sistema de aprobación: Las guías quedan pendientes hasta que el Director las apruebe
           </p>
         </div>
-        <button 
-          onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: showForm ? '#64748b' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          {showForm ? '❌ Cancelar' : '+ Nueva Guía'}
-        </button>
+        {userRole !== 3 && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: showForm ? '#64748b' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            {showForm ? '❌ Cancelar' : '+ Nueva Guía'}
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && userRole !== 3 && (
         <div style={{
           background: 'white',
           padding: '2rem',

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase, getUserData } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function Porciones() {
@@ -9,6 +9,7 @@ function Porciones() {
   const [ultimaAsistencia, setUltimaAsistencia] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editingPorcion, setEditingPorcion] = useState(null)
+  const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     id_product: '',
     porciones_por_unidad: '',
@@ -20,6 +21,7 @@ function Porciones() {
     loadPorciones()
     loadProducts()
     loadUltimaAsistencia()
+    getUserData().then(data => setUserRole(data?.id_rol))
   }, [])
 
   const loadUltimaAsistencia = async () => {
@@ -176,9 +178,10 @@ function Porciones() {
           <h2 className="text-2xl font-bold">Configuración de Porciones</h2>
           <p className="text-secondary">Define cuántas porciones da cada unidad de producto</p>
         </div>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={() => setShowForm(!showForm)}
+          style={{ display: userRole === 3 ? 'none' : undefined }}
         >
           {showForm ? '❌ Cancelar' : '➕ Nueva Porción'}
         </button>
@@ -186,13 +189,13 @@ function Porciones() {
 
       {/* Info box */}
       <div className="alert alert-warning mb-4">
-        💡 <strong>¿Cómo funciona?</strong> Cuando crees un menú diario, el sistema calculará automáticamente 
+        💡 <strong>¿Cómo funciona?</strong> Cuando crees un menú diario, el sistema calculará automáticamente
         cuánto necesitas de cada producto basándose en estas configuraciones y la cantidad de alumnos.
         <br/><strong>Ejemplo:</strong> Si 1 kg de arroz = 12 porciones y tienes {ultimaAsistencia || '---'} alumnos,
         el sistema calculará que necesitas 64.5 kg de arroz.
       </div>
 
-      {showForm && (
+      {showForm && userRole !== 3 && (
         <div className="card mb-4">
           <h3 className="text-lg font-semibold mb-4">
             {editingPorcion ? 'Editar Porción' : 'Nueva Porción'}
@@ -289,7 +292,7 @@ function Porciones() {
                   <th>Porciones por unidad</th>
                   <th>Ejemplo de cálculo</th>
                   <th>Notas</th>
-                  <th>Acciones</th>
+                  {userRole !== 3 && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -321,22 +324,24 @@ function Porciones() {
                         )}
                       </td>
                       <td className="text-sm">{porcion.notas || '-'}</td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button 
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleEdit(porcion)}
-                          >
-                            ✏️
-                          </button>
-                          <button 
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleDelete(porcion.id_porcion)}
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
+                      {userRole !== 3 && (
+                        <td>
+                          <div className="flex gap-2">
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleEdit(porcion)}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleDelete(porcion.id_porcion)}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}

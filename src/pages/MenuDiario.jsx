@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getCurrentUser, getLocalDate } from '../supabaseClient'
+import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 
 function MenuDiario() {
@@ -9,6 +9,7 @@ function MenuDiario() {
   const [products, setProducts] = useState([])
   const [porciones, setPorciones] = useState([])
   const [showForm, setShowForm] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     fecha: getLocalDate(),
     id_asistencia: '',
@@ -22,6 +23,7 @@ function MenuDiario() {
     loadAsistencias()
     loadProducts()
     loadPorciones()
+    getUserData().then(data => setUserRole(data?.id_rol))
   }, [])
 
   const loadMenus = async () => {
@@ -261,15 +263,17 @@ function MenuDiario() {
     <div>
       <div className="flex-between mb-4">
         <h2 className="text-2xl font-bold">Menú Diario</h2>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? '❌ Cancelar' : '➕ Nuevo Menú'}
-        </button>
+        {userRole !== 3 && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? '❌ Cancelar' : '➕ Nuevo Menú'}
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && userRole !== 3 && (
         <div className="card mb-4">
           <h3 className="text-lg font-semibold mb-4">Nuevo Menú del Día</h3>
           <form onSubmit={handleSubmit}>
