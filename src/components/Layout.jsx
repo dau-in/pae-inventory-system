@@ -16,6 +16,7 @@ function Layout() {
   useEffect(() => {
     let intervalId = null
     let userIp = ''
+    let userId = null
 
     const fetchIp = async () => {
       try {
@@ -30,7 +31,15 @@ function Layout() {
 
     const sendHeartbeat = async () => {
       try {
-        await supabase.rpc('update_user_activity', { p_ip: userIp })
+        if (!userId) {
+          const { data: { session } } = await supabase.auth.getSession()
+          userId = session?.user?.id
+        }
+        if (!userId) return
+        await supabase
+          .from('users')
+          .update({ last_seen: new Date().toISOString(), last_ip: userIp })
+          .eq('id_user', userId)
       } catch (error) {
         console.error('Error enviando heartbeat:', error)
       }
