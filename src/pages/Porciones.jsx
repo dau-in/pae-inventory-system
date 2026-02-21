@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getUserData } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
 
 function Porciones() {
   const [loading, setLoading] = useState(true)
@@ -105,21 +106,21 @@ function Porciones() {
           .eq('id_porcion', editingPorcion.id_porcion)
 
         if (error) throw error
-        alert('Porción actualizada')
+        notifySuccess('Actualizado', 'Porción actualizada correctamente')
       } else {
         const { error } = await supabase
           .from('receta_porcion')
           .insert(dataToSubmit)
 
         if (error) throw error
-        alert('Porción configurada')
+        notifySuccess('Configurado', 'Porción configurada correctamente')
       }
 
       resetForm()
       loadPorciones()
     } catch (error) {
       console.error('Error guardando porción:', error)
-      alert('Error: ' + error.message)
+      notifyError('Error al guardar', error.message)
     } finally {
       setLoading(false)
     }
@@ -137,7 +138,8 @@ function Porciones() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar esta configuración de porción?')) return
+    const confirmed = await confirmDanger('¿Eliminar porción?', 'Se eliminará esta configuración de porción')
+    if (!confirmed) return
 
     try {
       const { error } = await supabase
@@ -146,11 +148,11 @@ function Porciones() {
         .eq('id_porcion', id)
 
       if (error) throw error
-      alert('Porción eliminada')
+      notifySuccess('Eliminado', 'Configuración de porción eliminada')
       loadPorciones()
     } catch (error) {
       console.error('Error eliminando porción:', error)
-      alert('Error: ' + error.message)
+      notifyError('Error', error.message)
     }
   }
 

@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { signOut, getUserData } from '../supabaseClient'
+import { signOut, getUserData, supabase } from '../supabaseClient'
 import './Layout.css'
 
 function Layout() {
@@ -10,6 +10,43 @@ function Layout() {
 
   useEffect(() => {
     loadUserData()
+  }, [])
+
+  // Heartbeat: registrar actividad e IP cada 2 minutos
+  useEffect(() => {
+    let intervalId = null
+    let userIp = ''
+
+    const fetchIp = async () => {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json')
+        const data = await response.json()
+        userIp = data.ip || ''
+      } catch (error) {
+        console.error('Error obteniendo IP:', error)
+        userIp = ''
+      }
+    }
+
+    const sendHeartbeat = async () => {
+      try {
+        await supabase.rpc('update_user_activity', { p_ip: userIp })
+      } catch (error) {
+        console.error('Error enviando heartbeat:', error)
+      }
+    }
+
+    const startHeartbeat = async () => {
+      await fetchIp()
+      await sendHeartbeat()
+      intervalId = setInterval(sendHeartbeat, 2 * 60 * 1000)
+    }
+
+    startHeartbeat()
+
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
   }, [])
 
   const loadUserData = async () => {

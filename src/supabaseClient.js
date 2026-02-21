@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 // Obtener las variables de entorno
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
 
 // Validar que existan
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -13,8 +14,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Crear el cliente de Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Cliente separado para crear usuarios sin afectar la sesión del Director
-const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey, {
+// Cliente admin para operaciones de administración de usuarios
+// Usa service_role key si está disponible (necesaria para cambiar contraseñas)
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey || supabaseAnonKey, {
   auth: { autoRefreshToken: false, persistSession: false }
 })
 
@@ -95,4 +97,15 @@ export const createUserAccount = async (email, password, fullName, username, idR
   }
 
   return authData.user
+}
+
+// Helper para cambiar la contraseña de un usuario (requiere service_role key)
+export const changeUserPassword = async (userId, newPassword) => {
+  const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+    userId,
+    { password: newPassword }
+  )
+
+  if (error) throw error
+  return data
 }

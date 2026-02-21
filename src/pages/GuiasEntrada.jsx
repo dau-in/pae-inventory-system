@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifySuccess, notifyError, notifyWarning } from '../utils/notifications'
 
 function GuiasEntrada() {
   const [loading, setLoading] = useState(true)
@@ -130,7 +131,7 @@ function GuiasEntrada() {
     e.preventDefault()
     
     if (detalles.length === 0) {
-      alert('❌ Debe agregar al menos un producto')
+      notifyWarning('Campo requerido', 'Debe agregar al menos un producto')
       return
     }
 
@@ -142,7 +143,7 @@ function GuiasEntrada() {
         for (let j = 0; j < detalle.lotes.length; j++) {
           const lote = detalle.lotes[j]
           if (!lote.cantidad || !lote.fecha_vencimiento) {
-            alert(`❌ Producto ${i + 1}, Lote ${j + 1}: Complete cantidad y fecha de vencimiento`)
+            notifyWarning('Datos incompletos', `Producto ${i + 1}, Lote ${j + 1}: Complete cantidad y fecha de vencimiento`)
             return
           }
         }
@@ -151,7 +152,7 @@ function GuiasEntrada() {
         const cantidadTotal = parseFloat(detalle.amount || 0)
         
         if (Math.abs(sumaLotes - cantidadTotal) > 0.01) {
-          alert(`❌ Producto ${i + 1}: La suma de lotes (${sumaLotes}) no coincide con cantidad total (${cantidadTotal})`)
+          notifyWarning('Lotes no coinciden', `Producto ${i + 1}: La suma de lotes (${sumaLotes}) no coincide con la cantidad total (${cantidadTotal})`)
           return
         }
       }
@@ -208,22 +209,13 @@ function GuiasEntrada() {
 
       if (inputError) throw inputError
 
-      alert(`✅ Guía #${formData.numero_guia_sunagro} registrada exitosamente.
-
-📋 ESTADO: PENDIENTE DE APROBACIÓN
-
-⚠️ IMPORTANTE:
-• El inventario NO se ha actualizado todavía
-• El Director debe revisar y aprobar esta guía
-• Solo después de la aprobación se sumará al stock
-
-Guía creada por: ${user.email}`)
+      notifySuccess('Guía registrada', `Guía #${formData.numero_guia_sunagro} registrada. Estado: Pendiente de aprobación. El inventario se actualizará cuando el Director la apruebe.`)
       
       resetForm()
       loadGuias()
     } catch (error) {
       console.error('Error guardando guía:', error)
-      alert('❌ Error al guardar guía: ' + error.message)
+      notifyError('Error al guardar guía', error.message)
     } finally {
       setLoading(false)
     }

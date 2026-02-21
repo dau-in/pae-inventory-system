@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifySuccess, notifyError, notifyWarning, confirmAction } from '../utils/notifications'
 
 function MenuDiario() {
   const [loading, setLoading] = useState(true)
@@ -155,16 +156,17 @@ function MenuDiario() {
     e.preventDefault()
 
     if (!formData.id_asistencia) {
-      alert('Debe seleccionar una asistencia')
+      notifyWarning('Campo requerido', 'Debe seleccionar una asistencia')
       return
     }
 
     if (detalles.length === 0) {
-      alert('Debe agregar al menos un producto')
+      notifyWarning('Campo requerido', 'Debe agregar al menos un producto')
       return
     }
 
-    if (!confirm('¿Confirmar menú? Esto descontará del inventario')) return
+    const confirmed = await confirmAction('¿Confirmar menú?', 'Esto descontará los productos del inventario', 'Confirmar menú')
+    if (!confirmed) return
 
     setLoading(true)
 
@@ -184,7 +186,7 @@ function MenuDiario() {
       }
 
       if (stockInsuficiente.length > 0) {
-        alert('Stock insuficiente para los siguientes productos:\n\n' + stockInsuficiente.join('\n'))
+        notifyError('Stock insuficiente', stockInsuficiente.join(', '))
         setLoading(false)
         return
       }
@@ -234,13 +236,13 @@ function MenuDiario() {
 
       if (outputError) throw outputError
 
-      alert('Menú registrado exitosamente. El inventario se ha actualizado.')
+      notifySuccess('Menú registrado', 'El inventario se ha actualizado correctamente')
       resetForm()
       loadMenus()
       loadProducts() // Recargar para ver stock actualizado
     } catch (error) {
       console.error('Error guardando menú:', error)
-      alert('Error al guardar menú: ' + error.message)
+      notifyError('Error al guardar menú', error.message)
     } finally {
       setLoading(false)
     }

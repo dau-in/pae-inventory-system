@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifyError } from '../utils/notifications'
 
 function AuditLog() {
   const [loading, setLoading] = useState(true)
@@ -70,7 +71,7 @@ function AuditLog() {
       }
     } catch (error) {
       console.error('Error cargando logs:', error)
-      alert('Error al cargar auditoría: ' + error.message)
+      notifyError('Error al cargar auditoría', error.message)
     } finally {
       setLoading(false)
     }

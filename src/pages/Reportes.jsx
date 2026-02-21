@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getLocalDate, getFirstDayOfMonth } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifyError } from '../utils/notifications'
 
 function Reportes() {
   const [loading, setLoading] = useState(true)
@@ -39,7 +40,7 @@ function Reportes() {
       }
     } catch (error) {
       console.error('Error cargando reporte:', error)
-      alert('Error al cargar reporte: ' + error.message)
+      notifyError('Error al cargar reporte', error.message)
     } finally {
       setLoading(false)
     }

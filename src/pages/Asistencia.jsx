@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
 
 function Asistencia() {
   const [loading, setLoading] = useState(true)
@@ -62,21 +63,21 @@ function Asistencia() {
           .eq('id_asistencia', editingAsistencia.id_asistencia)
 
         if (error) throw error
-        alert('Asistencia actualizada')
+        notifySuccess('Actualizado', 'Asistencia actualizada correctamente')
       } else {
         const { error } = await supabase
           .from('asistencia_diaria')
           .insert(dataToSubmit)
 
         if (error) throw error
-        alert('Asistencia registrada')
+        notifySuccess('Registrado', 'Asistencia registrada correctamente')
       }
 
       resetForm()
       loadAsistencias()
     } catch (error) {
       console.error('Error guardando asistencia:', error)
-      alert('Error al guardar asistencia: ' + error.message)
+      notifyError('Error al guardar', error.message)
     } finally {
       setLoading(false)
     }
@@ -93,7 +94,8 @@ function Asistencia() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar este registro de asistencia?')) return
+    const confirmed = await confirmDanger('¿Eliminar asistencia?', 'Este registro será eliminado permanentemente')
+    if (!confirmed) return
 
     try {
       const { error } = await supabase
@@ -102,11 +104,11 @@ function Asistencia() {
         .eq('id_asistencia', id)
 
       if (error) throw error
-      alert('Asistencia eliminada')
+      notifySuccess('Eliminado', 'Registro de asistencia eliminado')
       loadAsistencias()
     } catch (error) {
       console.error('Error eliminando asistencia:', error)
-      alert('Error: ' + error.message)
+      notifyError('Error', error.message)
     }
   }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, getUserData } from '../supabaseClient'
+import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
 import Loading from '../components/Loading'
 
 function Products() {
@@ -41,7 +42,7 @@ function Products() {
       setProducts(data || [])
     } catch (error) {
       console.error('Error cargando productos:', error)
-      alert('Error al cargar productos')
+      notifyError('Error', 'No se pudieron cargar los productos')
     } finally {
       setLoading(false)
     }
@@ -90,7 +91,7 @@ function Products() {
           .eq('id_product', editingProduct.id_product)
 
         if (error) throw error
-        alert('Producto actualizado exitosamente')
+        notifySuccess('Producto actualizado', 'Los cambios se guardaron correctamente')
       } else {
         // Crear
         const { error } = await supabase
@@ -98,14 +99,14 @@ function Products() {
           .insert(dataToSubmit)
 
         if (error) throw error
-        alert('Producto creado exitosamente')
+        notifySuccess('Producto creado', 'El producto se registró correctamente')
       }
 
       resetForm()
       loadProducts()
     } catch (error) {
       console.error('Error guardando producto:', error)
-      alert('Error al guardar producto: ' + error.message)
+      notifyError('Error al guardar', error.message)
     } finally {
       setLoading(false)
     }
@@ -126,7 +127,8 @@ function Products() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Está seguro de eliminar este producto?')) return
+    const confirmed = await confirmDanger('¿Eliminar producto?', 'Esta acción no se puede deshacer')
+    if (!confirmed) return
 
     try {
       const { error } = await supabase
@@ -135,11 +137,11 @@ function Products() {
         .eq('id_product', id)
 
       if (error) throw error
-      alert('Producto eliminado')
+      notifySuccess('Eliminado', 'El producto fue eliminado')
       loadProducts()
     } catch (error) {
       console.error('Error eliminando producto:', error)
-      alert('Error al eliminar producto: ' + error.message)
+      notifyError('Error al eliminar', error.message)
     }
   }
 

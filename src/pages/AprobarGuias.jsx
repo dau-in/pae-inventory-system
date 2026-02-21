@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser } from '../supabaseClient'
 import Loading from '../components/Loading'
+import { notifySuccess, notifyError, notifyWarning, notifyInfo } from '../utils/notifications'
 
 function AprobarGuias() {
   const [loading, setLoading] = useState(true)
@@ -81,7 +82,7 @@ function AprobarGuias() {
 
     // Verificar que es Director o Desarrollador
     if (userRole !== 1 && userRole !== 4) {
-      alert('Solo el Director puede aprobar guías')
+      notifyWarning('Sin permisos', 'Solo el Director puede aprobar guías')
       return
     }
 
@@ -96,20 +97,13 @@ function AprobarGuias() {
 
       if (error) throw error
 
-      alert(`✅ ${data.mensaje}
-
-📊 Resumen:
-- Guía: #${guiaSeleccionada.numero_guia_sunagro}
-- Productos procesados: ${data.productos_procesados}
-- Inventario actualizado correctamente
-
-El stock de los productos ha sido incrementado y las fechas de vencimiento actualizadas.`)
+      notifySuccess('Guía aprobada', `Guía #${guiaSeleccionada.numero_guia_sunagro} aprobada. ${data.productos_procesados} productos actualizados en inventario.`)
 
       cerrarModal()
       loadGuiasPendientes()
     } catch (error) {
       console.error('Error al aprobar guía:', error)
-      alert('❌ Error al aprobar guía: ' + error.message)
+      notifyError('Error al aprobar', error.message)
     } finally {
       setLoading(false)
     }
@@ -119,13 +113,13 @@ El stock de los productos ha sido incrementado y las fechas de vencimiento actua
     if (!guiaSeleccionada) return
 
     if (!comentarios || comentarios.trim() === '') {
-      alert('❌ Debe especificar el motivo del rechazo')
+      notifyWarning('Campo requerido', 'Debe especificar el motivo del rechazo')
       return
     }
 
     // Verificar que es Director o Desarrollador
     if (userRole !== 1 && userRole !== 4) {
-      alert('Solo el Director puede rechazar guías')
+      notifyWarning('Sin permisos', 'Solo el Director puede rechazar guías')
       return
     }
 
@@ -140,16 +134,13 @@ El stock de los productos ha sido incrementado y las fechas de vencimiento actua
 
       if (error) throw error
 
-      alert(`⚠️ Guía #${guiaSeleccionada.numero_guia_sunagro} rechazada.
-
-El creador será notificado del rechazo.
-Motivo: ${comentarios}`)
+      notifyInfo('Guía rechazada', `Guía #${guiaSeleccionada.numero_guia_sunagro} rechazada. Motivo: ${comentarios}`)
 
       cerrarModal()
       loadGuiasPendientes()
     } catch (error) {
       console.error('Error al rechazar guía:', error)
-      alert('❌ Error al rechazar guía: ' + error.message)
+      notifyError('Error al rechazar', error.message)
     } finally {
       setLoading(false)
     }

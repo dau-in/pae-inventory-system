@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { supabase, getUserData, getCurrentUser, createUserAccount } from '../supabaseClient'
+import { supabase, getUserData, getCurrentUser, createUserAccount, changeUserPassword } from '../supabaseClient'
+import { notifySuccess, notifyError, notifyWarning, notifyInfo, confirmDanger, confirmAction } from '../utils/notifications'
 import Loading from '../components/Loading'
 
 function Usuarios() {
@@ -18,12 +19,56 @@ function Usuarios() {
     id_rol: 2
   })
   const [saving, setSaving] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [passwordTarget, setPasswordTarget] = useState(null)
+  const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' })
+  const [changingPassword, setChangingPassword] = useState(false)
 
   useEffect(() => {
     checkPermissions()
     loadUsuarios()
     loadRoles()
   }, [])
+
+  // Auto-refresh cada 60 segundos para mantener estados de conexión actualizados
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadUsuarios()
+    }, 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const isUserOnline = (lastSeen) => {
+    if (!lastSeen) return false
+    return (new Date() - new Date(lastSeen)) < 3 * 60 * 1000
+  }
+
+  const getRelativeTime = (timestamp) => {
+    if (!timestamp) return 'Nunca'
+    const diffMs = new Date() - new Date(timestamp)
+    const diffMinutes = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMinutes < 1) return 'hace un momento'
+    if (diffMinutes === 1) return 'hace 1 minuto'
+    if (diffMinutes < 60) return `hace ${diffMinutes} minutos`
+    if (diffHours === 1) return 'hace 1 hora'
+    if (diffHours < 24) return `hace ${diffHours} horas`
+    if (diffDays === 1) return 'hace 1 día'
+    return `hace ${diffDays} días`
+  }
+
+  const canChangePassword = (user) => {
+    // Desarrollador (4): puede cambiar a todos
+    if (userRole === 4) return true
+    // Director (1): puede cambiar la suya, la de roles 2 y 3. NO la de otro Director ni Desarrollador
+    if (userRole === 1) {
+      if (user.id_user === currentUserId) return true
+      if ([2, 3].includes(user.id_rol)) return true
+    }
+    return false
+  }
 
   const checkPermissions = async () => {
     const data = await getUserData()
@@ -42,7 +87,7 @@ function Usuarios() {
       setUsuarios(data || [])
     } catch (error) {
       console.error('Error cargando usuarios:', error)
-      alert('Error al cargar usuarios')
+      notifyError('Error', 'No se pudieron cargar los usuarios')
     } finally {
       setLoading(false)
     }
@@ -84,17 +129,17 @@ function Usuarios() {
         parseInt(formData.id_rol)
       )
 
-      alert('Usuario creado exitosamente.\n\nCredenciales:\nCorreo: ' + formData.email + '\nContraseña: ' + formData.password + '\n\nComparta estas credenciales con el usuario.')
+      notifyInfo('Usuario creado', '<b>Credenciales:</b><br>Correo: ' + formData.email + '<br>Contraseña: ' + formData.password + '<br><br>Comparta estas credenciales con el usuario.')
       resetForm()
       loadUsuarios()
     } catch (error) {
       console.error('Error creando usuario:', error)
       if (error.message.includes('already registered')) {
-        alert('Error: Ya existe un usuario con ese correo electrónico.')
+        notifyError('Error', 'Ya existe un usuario con ese correo electrónico')
       } else if (error.message.includes('username')) {
-        alert('Error: Ya existe un usuario con ese nombre de usuario.')
+        notifyError('Error', 'Ya existe un usuario con ese nombre de usuario')
       } else {
-        alert('Error al crear usuario: ' + error.message)
+        notifyError('Error al crear usuario', error.message)
       }
     } finally {
       setSaving(false)
@@ -103,17 +148,17 @@ function Usuarios() {
 
   const handleEdit = (user) => {
     if (user.id_user === currentUserId) {
-      alert('No puede editar su propia cuenta desde aquí.')
+      notifyWarning('Acción no permitida', 'No puede editar su propia cuenta desde aquí')
       return
     }
     // Nadie puede editar a un Desarrollador
     if (user.id_rol === 4) {
-      alert('No puede modificar la cuenta de un Desarrollador.')
+      notifyWarning('Acción no permitida', 'No puede modificar la cuenta de un Desarrollador')
       return
     }
     // Director no puede editar a otro Director
     if (userRole === 1 && user.id_rol === 1) {
-      alert('No puede modificar a otro Director.')
+      notifyWarning('Acción no permitida', 'No puede modificar a otro Director')
       return
     }
     setEditingUser(user)
@@ -143,12 +188,12 @@ function Usuarios() {
         .eq('id_user', editingUser.id_user)
 
       if (error) throw error
-      alert('Usuario actualizado exitosamente')
+      notifySuccess('Actualizado', 'Usuario actualizado exitosamente')
       resetForm()
       loadUsuarios()
     } catch (error) {
       console.error('Error actualizando usuario:', error)
-      alert('Error al actualizar usuario: ' + error.message)
+      notifyError('Error al actualizar', error.message)
     } finally {
       setSaving(false)
     }
@@ -156,24 +201,25 @@ function Usuarios() {
 
   const toggleActive = async (user) => {
     if (user.id_user === currentUserId) {
-      alert('No puede desactivar su propia cuenta.')
+      notifyWarning('Acción no permitida', 'No puede desactivar su propia cuenta')
       return
     }
     // Nadie puede desactivar a un Desarrollador
     if (user.id_rol === 4) {
-      alert('No puede desactivar la cuenta de un Desarrollador.')
+      notifyWarning('Acción no permitida', 'No puede desactivar la cuenta de un Desarrollador')
       return
     }
     // Director no puede desactivar a otro Director
     if (userRole === 1 && user.id_rol === 1) {
-      alert('No puede desactivar a otro Director.')
+      notifyWarning('Acción no permitida', 'No puede desactivar a otro Director')
       return
     }
 
     const newStatus = !user.is_active
     const action = newStatus ? 'activar' : 'desactivar'
 
-    if (!confirm(`¿Está seguro de ${action} al usuario "${user.full_name}"?`)) return
+    const confirmed = await confirmDanger(`¿${action} usuario?`, `¿Está seguro de ${action} al usuario "${user.full_name}"?`, action === 'activar' ? 'Activar' : 'Desactivar')
+    if (!confirmed) return
 
     try {
       const { error } = await supabase
@@ -182,11 +228,11 @@ function Usuarios() {
         .eq('id_user', user.id_user)
 
       if (error) throw error
-      alert(`Usuario ${newStatus ? 'activado' : 'desactivado'} exitosamente`)
+      notifySuccess(newStatus ? 'Activado' : 'Desactivado', 'Usuario ' + (newStatus ? 'activado' : 'desactivado') + ' exitosamente')
       loadUsuarios()
     } catch (error) {
       console.error('Error cambiando estado:', error)
-      alert('Error: ' + error.message)
+      notifyError('Error', error.message)
     }
   }
 
@@ -200,6 +246,56 @@ function Usuarios() {
     })
     setEditingUser(null)
     setShowForm(false)
+  }
+
+  const openPasswordModal = (user) => {
+    setPasswordTarget(user)
+    setPasswordData({ newPassword: '', confirmPassword: '' })
+    setShowPasswordModal(true)
+  }
+
+  const closePasswordModal = () => {
+    setPasswordTarget(null)
+    setPasswordData({ newPassword: '', confirmPassword: '' })
+    setShowPasswordModal(false)
+  }
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+
+    if (passwordData.newPassword.length < 6) {
+      notifyWarning('Contraseña muy corta', 'La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      notifyWarning('No coinciden', 'La nueva contraseña y la confirmación deben ser iguales')
+      return
+    }
+
+    const confirmed = await confirmAction(
+      '¿Cambiar contraseña?',
+      `¿Está seguro de cambiar la contraseña de "${passwordTarget.full_name}"?`,
+      'Cambiar'
+    )
+    if (!confirmed) return
+
+    setChangingPassword(true)
+    try {
+      await changeUserPassword(passwordTarget.id_user, passwordData.newPassword)
+      notifyInfo(
+        'Contraseña cambiada',
+        `<b>Nueva contraseña para ${passwordTarget.full_name}:</b><br><br>` +
+        `<code style="font-size: 1.2rem; padding: 0.5rem; background: #f1f5f9; border-radius: 4px;">${passwordData.newPassword}</code><br><br>` +
+        `Comparta esta contraseña con el usuario.`
+      )
+      closePasswordModal()
+    } catch (error) {
+      console.error('Error cambiando contraseña:', error)
+      notifyError('Error al cambiar contraseña', error.message)
+    } finally {
+      setChangingPassword(false)
+    }
   }
 
   if (loading) return <Loading />
@@ -357,6 +453,8 @@ function Usuarios() {
                   <th>Usuario</th>
                   <th>Rol</th>
                   <th>Estado</th>
+                  <th>Conexión</th>
+                  <th>Última IP</th>
                   <th>Creado</th>
                   <th>Acciones</th>
                 </tr>
@@ -384,29 +482,76 @@ function Usuarios() {
                       )}
                     </td>
                     <td>
+                      {isUserOnline(user.last_seen) ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{
+                            width: '10px', height: '10px', borderRadius: '50%',
+                            backgroundColor: '#10b981', display: 'inline-block'
+                          }}></span>
+                          <span className="text-sm" style={{ color: '#10b981', fontWeight: 600 }}>En línea</span>
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{
+                            width: '10px', height: '10px', borderRadius: '50%',
+                            backgroundColor: '#94a3b8', display: 'inline-block'
+                          }}></span>
+                          <span className="text-sm text-secondary">{getRelativeTime(user.last_seen)}</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-sm text-secondary">
+                      {user.last_ip || '—'}
+                    </td>
+                    <td>
                       {new Date(user.created_at).toLocaleDateString('es-VE')}
                     </td>
                     <td>
                       {user.id_user === currentUserId ? (
-                        <span className="text-sm text-secondary">(Tu cuenta)</span>
-                      ) : user.id_rol === 4 ? (
-                        <span className="text-sm text-secondary">(Desarrollador)</span>
-                      ) : user.id_rol === 1 && userRole === 1 ? (
-                        <span className="text-sm text-secondary">(Director protegido)</span>
+                        <div className="flex gap-2">
+                          <span className="text-sm text-secondary" style={{ alignSelf: 'center' }}>(Tu cuenta)</span>
+                          {canChangePassword(user) && (
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => openPasswordModal(user)}
+                              title="Cambiar contraseña"
+                            >
+                              🔑
+                            </button>
+                          )}
+                        </div>
                       ) : (
                         <div className="flex gap-2">
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleEdit(user)}
-                          >
-                            ✏️ Editar
-                          </button>
-                          <button
-                            className={`btn btn-sm ${user.is_active === false ? 'btn-success' : 'btn-danger'}`}
-                            onClick={() => toggleActive(user)}
-                          >
-                            {user.is_active === false ? '✅ Activar' : '🚫 Desactivar'}
-                          </button>
+                          {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleEdit(user)}
+                            >
+                              ✏️ Editar
+                            </button>
+                          )}
+                          {canChangePassword(user) && (
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => openPasswordModal(user)}
+                              title="Cambiar contraseña"
+                            >
+                              🔑
+                            </button>
+                          )}
+                          {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
+                            <button
+                              className={`btn btn-sm ${user.is_active === false ? 'btn-success' : 'btn-danger'}`}
+                              onClick={() => toggleActive(user)}
+                            >
+                              {user.is_active === false ? '✅ Activar' : '🚫 Desactivar'}
+                            </button>
+                          )}
+                          {!canChangePassword(user) && (user.id_rol === 4 || (user.id_rol === 1 && userRole === 1)) && (
+                            <span className="text-sm text-secondary">
+                              {user.id_rol === 4 ? '(Desarrollador)' : '(Director protegido)'}
+                            </span>
+                          )}
                         </div>
                       )}
                     </td>
@@ -417,6 +562,61 @@ function Usuarios() {
           )}
         </div>
       </div>
+
+      {/* Modal de cambio de contraseña */}
+      {showPasswordModal && passwordTarget && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '450px', margin: '1rem' }}>
+            <h3 className="text-lg font-semibold mb-4">
+              🔑 Cambiar Contraseña
+            </h3>
+            <p className="text-sm text-secondary mb-4">
+              Usuario: <strong>{passwordTarget.full_name}</strong> ({passwordTarget.username})
+            </p>
+            <form onSubmit={handlePasswordChange}>
+              <div className="form-group">
+                <label>Nueva contraseña * (mínimo 6 caracteres)</label>
+                <input
+                  type="text"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                  placeholder="Nueva contraseña"
+                  required
+                  minLength={6}
+                  autoFocus
+                />
+                <p className="text-sm text-secondary mt-1">
+                  Se muestra en texto plano para que pueda compartirla con el usuario
+                </p>
+              </div>
+              <div className="form-group">
+                <label>Confirmar contraseña *</label>
+                <input
+                  type="text"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="Repetir contraseña"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button type="submit" className="btn btn-primary" disabled={changingPassword}>
+                  {changingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={closePasswordModal}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
