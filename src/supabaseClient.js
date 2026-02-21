@@ -17,7 +17,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // Cliente admin para operaciones de administración de usuarios
 // Usa service_role key si está disponible (necesaria para cambiar contraseñas)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey || supabaseAnonKey, {
-  auth: { autoRefreshToken: false, persistSession: false }
+  auth: { autoRefreshToken: false, persistSession: false, storageKey: 'supabase-admin' }
 })
 
 // Helper para obtener el usuario actual
