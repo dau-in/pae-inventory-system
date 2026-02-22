@@ -352,6 +352,7 @@ function Usuarios() {
                       onChange={handleInputChange}
                       placeholder="usuario@correo.com"
                       required
+                      autoComplete="email"
                     />
                   </div>
 
@@ -365,6 +366,7 @@ function Usuarios() {
                       placeholder="Contraseña temporal"
                       required
                       minLength={6}
+                      autoComplete="new-password"
                     />
                     <p className="text-sm text-secondary mt-1">
                       Se muestra en texto plano para que pueda compartirla con el usuario
@@ -589,6 +591,7 @@ function Usuarios() {
                   required
                   minLength={6}
                   autoFocus
+                  autoComplete="new-password"
                 />
                 <p className="text-sm text-secondary mt-1">
                   Se muestra en texto plano para que pueda compartirla con el usuario
@@ -603,6 +606,7 @@ function Usuarios() {
                   placeholder="Repetir contraseña"
                   required
                   minLength={6}
+                  autoComplete="new-password"
                 />
               </div>
               <div className="flex gap-2 mt-4">

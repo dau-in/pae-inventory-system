@@ -73,6 +73,7 @@ function Login() {
               placeholder="tu@correo.com"
               required
               disabled={loading}
+              autoComplete="email"
             />
           </div>
 
@@ -86,6 +87,7 @@ function Login() {
               placeholder="••••••••"
               required
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
 
