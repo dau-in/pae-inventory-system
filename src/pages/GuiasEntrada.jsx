@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
 import Loading from '../components/Loading'
 import { notifySuccess, notifyError, notifyWarning } from '../utils/notifications'
+import './GuiasEntrada.css'
 
 function GuiasEntrada() {
   const [loading, setLoading] = useState(true)
@@ -301,14 +302,7 @@ function GuiasEntrada() {
       </div>
 
       {showForm && userRole !== 3 && (
-        <div style={{
-          background: 'white',
-          padding: '2rem',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: '2rem',
-          border: '2px solid #dbeafe'
-        }}>
+        <div className="guia-form-card">
           <h3 style={{ marginBottom: '1rem' }}>Registrar Nueva Guía</h3>
           <div style={{
             padding: '1rem',
@@ -325,7 +319,7 @@ function GuiasEntrada() {
 
           <form onSubmit={handleSubmit}>
             {/* Formulario simplificado */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="guia-form-grid">
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
                   Nº Guía SUNAGRO* <span style={{ color: '#ef4444' }}>●</span>
@@ -508,7 +502,7 @@ function GuiasEntrada() {
                     </button>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="rubro-fields-grid">
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
                         Rubro*
@@ -604,10 +598,8 @@ function GuiasEntrada() {
                     {detalle.lotes.map((lote, loteIndex) => (
                       <div
                         key={loteIndex}
+                        className="lote-row-grid"
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr auto',
-                          gap: '0.75rem',
                           marginBottom: '0.75rem',
                           padding: '0.75rem',
                           background: '#f8fafc',

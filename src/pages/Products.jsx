@@ -255,7 +255,7 @@ function Products() {
             <table>
               <thead>
                 <tr>
-                  <th>It.</th>
+                  <th>Nº Ítem</th>
                   <th>Nombre</th>
                   <th>Categoría</th>
                   <th>Stock</th>
@@ -266,7 +266,7 @@ function Products() {
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id_product}>
-                    <td>It. {product.id_product}</td>
+                    <td>{product.id_product}</td>
                     <td className="font-semibold">{product.product_name}</td>
                     <td>{product.category?.category_name || '-'}</td>
                     <td>

@@ -1,0 +1,62 @@
+/* Grids responsivos para GuiasEntrada */
+
+/* Formulario principal: SUNAGRO / SISECAL / Fecha / Vocera (3 cols) */
+.guia-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Tarjeta del formulario principal */
+.guia-form-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  border: 2px solid #dbeafe;
+}
+
+/* Campos de un rubro: Rubro select / Cantidad / Bultos (2fr 1fr 1fr) */
+.rubro-fields-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Fila de lote individual: Cantidad / Vencimiento / Botón eliminar (1fr 1fr auto) */
+.lote-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+/* ── Mobile ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .guia-form-card {
+    padding: 1rem;
+  }
+
+  .guia-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rubro-fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* En móvil los lotes van en 2 columnas (cantidad + fecha en la misma fila)
+     y el botón eliminar ocupa la fila completa alineado a la derecha */
+  .lote-row-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lote-row-grid > *:last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
