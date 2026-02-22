@@ -292,7 +292,11 @@ function Usuarios() {
       closePasswordModal()
     } catch (error) {
       console.error('Error cambiando contraseña:', error)
-      notifyError('Error al cambiar contraseña', error.message)
+      if (error.message?.includes('different from the old password')) {
+        notifyError('Contraseña sin cambios', 'La nueva contraseña debe ser diferente a la actual.')
+      } else {
+        notifyError('Error al cambiar contraseña', error.message)
+      }
     } finally {
       setChangingPassword(false)
     }
