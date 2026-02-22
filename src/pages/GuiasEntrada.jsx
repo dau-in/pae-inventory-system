@@ -19,6 +19,19 @@ function GuiasEntrada() {
   })
   const [detalles, setDetalles] = useState([])
 
+  // Filtros de historial
+  const getDefaultDesde = () => {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  const [fechaDesde, setFechaDesde] = useState(getDefaultDesde())
+  const [fechaHasta, setFechaHasta] = useState(getLocalDate())
+  const [searchSunagro, setSearchSunagro] = useState('')
+
   useEffect(() => {
     loadGuias()
     loadProducts()
@@ -27,7 +40,7 @@ function GuiasEntrada() {
 
   const loadGuias = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('guia_entrada')
         .select(`
           *,
@@ -41,7 +54,15 @@ function GuiasEntrada() {
           creador:users!created_by(full_name),
           aprobador:users!aprobado_por(full_name)
         `)
+        .gte('fecha', fechaDesde)
+        .lte('fecha', fechaHasta)
         .order('fecha', { ascending: false })
+
+      if (searchSunagro.trim()) {
+        query = query.ilike('numero_guia_sunagro', `%${searchSunagro.trim()}%`)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setGuias(data || [])
@@ -50,6 +71,11 @@ function GuiasEntrada() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleBuscar = () => {
+    setLoading(true)
+    loadGuias()
   }
 
   const loadProducts = async () => {
@@ -79,7 +105,6 @@ function GuiasEntrada() {
       id_product: '',
       amount: '',
       unit_amount: '',
-      tiene_lotes: false,
       lotes: [{
         cantidad: '',
         fecha_vencimiento: ''
@@ -94,13 +119,6 @@ function GuiasEntrada() {
   const handleDetalleChange = (index, field, value) => {
     const newDetalles = [...detalles]
     newDetalles[index][field] = value
-    
-    if (field === 'tiene_lotes' && value === true) {
-      if (newDetalles[index].lotes.length === 1 && newDetalles[index].amount) {
-        newDetalles[index].lotes[0].cantidad = newDetalles[index].amount
-      }
-    }
-    
     setDetalles(newDetalles)
   }
 
@@ -129,32 +147,30 @@ function GuiasEntrada() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (detalles.length === 0) {
       notifyWarning('Campo requerido', 'Debe agregar al menos un producto')
       return
     }
 
-    // Validar lotes
+    // Validar lotes (siempre obligatorios)
     for (let i = 0; i < detalles.length; i++) {
       const detalle = detalles[i]
-      
-      if (detalle.tiene_lotes) {
-        for (let j = 0; j < detalle.lotes.length; j++) {
-          const lote = detalle.lotes[j]
-          if (!lote.cantidad || !lote.fecha_vencimiento) {
-            notifyWarning('Datos incompletos', `Producto ${i + 1}, Lote ${j + 1}: Complete cantidad y fecha de vencimiento`)
-            return
-          }
-        }
-        
-        const sumaLotes = detalle.lotes.reduce((sum, lote) => sum + parseFloat(lote.cantidad || 0), 0)
-        const cantidadTotal = parseFloat(detalle.amount || 0)
-        
-        if (Math.abs(sumaLotes - cantidadTotal) > 0.01) {
-          notifyWarning('Lotes no coinciden', `Producto ${i + 1}: La suma de lotes (${sumaLotes}) no coincide con la cantidad total (${cantidadTotal})`)
+
+      for (let j = 0; j < detalle.lotes.length; j++) {
+        const lote = detalle.lotes[j]
+        if (!lote.cantidad || !lote.fecha_vencimiento) {
+          notifyWarning('Datos incompletos', `Producto ${i + 1}, Lote ${j + 1}: Complete cantidad y fecha de vencimiento`)
           return
         }
+      }
+
+      const sumaLotes = detalle.lotes.reduce((sum, lote) => sum + parseFloat(lote.cantidad || 0), 0)
+      const cantidadTotal = parseFloat(detalle.amount || 0)
+
+      if (Math.abs(sumaLotes - cantidadTotal) > 0.01) {
+        notifyWarning('Lotes no coinciden', `Producto ${i + 1}: La suma de lotes (${sumaLotes}) no coincide con la cantidad total (${cantidadTotal})`)
+        return
       }
     }
 
@@ -174,34 +190,32 @@ function GuiasEntrada() {
           telefono_vocera: formData.telefono_vocera || null,
           notas: formData.notas || null,
           created_by: user.id,
-          estado: 'Pendiente' // CRÍTICO: No actualiza inventario todavía
+          estado: 'Pendiente'
         })
         .select()
         .single()
 
-      if (guiaError) throw guiaError
-
-      // Insertar detalles con lotes en JSONB
-      const inputData = detalles.map(detalle => {
-        // Preparar lotes_detalle en formato JSON
-        let lotesDetalle = null
-        
-        if (detalle.tiene_lotes && detalle.lotes.length > 0) {
-          lotesDetalle = detalle.lotes.map(lote => ({
-            cantidad: parseFloat(lote.cantidad),
-            fecha_vencimiento: lote.fecha_vencimiento
-          }))
+      if (guiaError) {
+        if (guiaError.message.includes('unique_numero_guia_sunagro') || guiaError.code === '23505') {
+          notifyError('Guía duplicada', `Ya existe una guía con el número SUNAGRO "${formData.numero_guia_sunagro}"`)
+          setLoading(false)
+          return
         }
+        throw guiaError
+      }
 
-        return {
-          id_guia: guiaData.id_guia,
-          id_product: parseInt(detalle.id_product),
-          amount: parseFloat(detalle.amount),
-          unit_amount: detalle.unit_amount ? parseInt(detalle.unit_amount) : null,
-          fecha: formData.fecha,
-          lotes_detalle: lotesDetalle // Almacenar en JSONB
-        }
-      })
+      // Insertar detalles — lotes_detalle SIEMPRE tiene valor
+      const inputData = detalles.map(detalle => ({
+        id_guia: guiaData.id_guia,
+        id_product: parseInt(detalle.id_product),
+        amount: parseFloat(detalle.amount),
+        unit_amount: detalle.unit_amount ? parseInt(detalle.unit_amount) : null,
+        fecha: formData.fecha,
+        lotes_detalle: detalle.lotes.map(lote => ({
+          cantidad: parseFloat(lote.cantidad),
+          fecha_vencimiento: lote.fecha_vencimiento
+        }))
+      }))
 
       const { error: inputError } = await supabase
         .from('input')
@@ -210,7 +224,7 @@ function GuiasEntrada() {
       if (inputError) throw inputError
 
       notifySuccess('Guía registrada', `Guía #${formData.numero_guia_sunagro} registrada. Estado: Pendiente de aprobación. El inventario se actualizará cuando el Director la apruebe.`)
-      
+
       resetForm()
       loadGuias()
     } catch (error) {
@@ -240,9 +254,9 @@ function GuiasEntrada() {
       'Aprobada': { bg: '#d1fae5', color: '#065f46', icon: '✅' },
       'Rechazada': { bg: '#fee2e2', color: '#991b1b', icon: '❌' }
     }
-    
+
     const style = styles[estado] || styles['Pendiente']
-    
+
     return (
       <span style={{
         padding: '0.5rem 1rem',
@@ -304,7 +318,7 @@ function GuiasEntrada() {
             marginBottom: '1.5rem'
           }}>
             <p style={{ margin: 0, fontSize: '0.9rem', color: '#1e40af' }}>
-              ℹ️ <strong>Importante:</strong> Esta guía quedará en estado <strong>PENDIENTE</strong> hasta que el Director la apruebe. 
+              ℹ️ <strong>Importante:</strong> Esta guía quedará en estado <strong>PENDIENTE</strong> hasta que el Director la apruebe.
               El inventario NO se actualizará automáticamente.
             </p>
           </div>
@@ -432,7 +446,7 @@ function GuiasEntrada() {
               />
             </div>
 
-            {/* Productos - Igual que antes pero con los lotes */}
+            {/* Productos */}
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h4>Productos Recibidos</h4>
@@ -464,7 +478,6 @@ function GuiasEntrada() {
                 </div>
               )}
 
-              {/* Aquí va todo el código de productos y lotes igual que en la versión anterior */}
               {detalles.map((detalle, index) => (
                 <div
                   key={index}
@@ -560,147 +573,122 @@ function GuiasEntrada() {
                     </div>
                   </div>
 
-                  {/* Checkbox de lotes */}
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer',
-                      padding: '0.5rem',
-                      background: detalle.tiene_lotes ? '#dbeafe' : 'transparent',
-                      borderRadius: '6px'
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={detalle.tiene_lotes}
-                        onChange={(e) => handleDetalleChange(index, 'tiene_lotes', e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span>
-                        📦 Este producto tiene <strong>múltiples lotes/bultos</strong> con fechas diferentes
-                      </span>
-                    </label>
-                  </div>
-
-                  {/* Sección de lotes (igual que antes) */}
-                  {detalle.tiene_lotes && (
-                    <div style={{
-                      background: 'white',
-                      padding: '1rem',
-                      borderRadius: '8px',
-                      border: '2px dashed #3b82f6'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <h6 style={{ color: '#3b82f6', margin: 0 }}>
-                          📦 Lotes/Bultos
-                        </h6>
-                        <button
-                          type="button"
-                          onClick={() => addLote(index)}
-                          style={{
-                            padding: '0.4rem 0.8rem',
-                            background: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem'
-                          }}
-                        >
-                          + Agregar Lote
-                        </button>
-                      </div>
-
-                      {detalle.lotes.map((lote, loteIndex) => (
-                        <div
-                          key={loteIndex}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr auto',
-                            gap: '0.75rem',
-                            marginBottom: '0.75rem',
-                            padding: '0.75rem',
-                            background: '#f8fafc',
-                            borderRadius: '6px'
-                          }}
-                        >
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
-                              Cantidad Lote {loteIndex + 1}*
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={lote.cantidad}
-                              onChange={(e) => handleLoteChange(index, loteIndex, 'cantidad', e.target.value)}
-                              required
-                              style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '6px'
-                              }}
-                            />
-                          </div>
-
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
-                              Vencimiento*
-                            </label>
-                            <input
-                              type="date"
-                              value={lote.fecha_vencimiento}
-                              onChange={(e) => handleLoteChange(index, loteIndex, 'fecha_vencimiento', e.target.value)}
-                              required
-                              style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '6px'
-                              }}
-                            />
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                            {detalle.lotes.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeLote(index, loteIndex)}
-                                style={{
-                                  padding: '0.5rem 0.75rem',
-                                  background: '#ef4444',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                🗑️
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Resumen */}
-                      <div style={{
-                        marginTop: '0.75rem',
-                        padding: '0.75rem',
-                        background: '#eff6ff',
-                        borderRadius: '6px',
-                        fontSize: '0.9rem'
-                      }}>
-                        <strong>Resumen:</strong> 
-                        Suma: {detalle.lotes.reduce((s, l) => s + (parseFloat(l.cantidad) || 0), 0).toFixed(2)}
-                        {' | '}
-                        Total: {detalle.amount || 0}
-                        {Math.abs((detalle.lotes.reduce((s, l) => s + (parseFloat(l.cantidad) || 0), 0)) - (parseFloat(detalle.amount) || 0)) > 0.01 && (
-                          <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>⚠️ No coinciden</span>
-                        )}
-                      </div>
+                  {/* Sección de lotes (siempre visible) */}
+                  <div style={{
+                    background: 'white',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '2px dashed #3b82f6'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <h6 style={{ color: '#3b82f6', margin: 0 }}>
+                        📦 Lotes / Vencimientos
+                      </h6>
+                      <button
+                        type="button"
+                        onClick={() => addLote(index)}
+                        style={{
+                          padding: '0.4rem 0.8rem',
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        + Agregar Lote
+                      </button>
                     </div>
-                  )}
+
+                    {detalle.lotes.map((lote, loteIndex) => (
+                      <div
+                        key={loteIndex}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr auto',
+                          gap: '0.75rem',
+                          marginBottom: '0.75rem',
+                          padding: '0.75rem',
+                          background: '#f8fafc',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
+                            Cantidad Lote {loteIndex + 1}*
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={lote.cantidad}
+                            onChange={(e) => handleLoteChange(index, loteIndex, 'cantidad', e.target.value)}
+                            required
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px'
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
+                            Vencimiento*
+                          </label>
+                          <input
+                            type="date"
+                            value={lote.fecha_vencimiento}
+                            onChange={(e) => handleLoteChange(index, loteIndex, 'fecha_vencimiento', e.target.value)}
+                            required
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                          {detalle.lotes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeLote(index, loteIndex)}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: '#ef4444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Resumen */}
+                    <div style={{
+                      marginTop: '0.75rem',
+                      padding: '0.75rem',
+                      background: '#eff6ff',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem'
+                    }}>
+                      <strong>Resumen:</strong>
+                      Suma: {detalle.lotes.reduce((s, l) => s + (parseFloat(l.cantidad) || 0), 0).toFixed(2)}
+                      {' | '}
+                      Total: {detalle.amount || 0}
+                      {Math.abs((detalle.lotes.reduce((s, l) => s + (parseFloat(l.cantidad) || 0), 0)) - (parseFloat(detalle.amount) || 0)) > 0.01 && (
+                        <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>⚠️ No coinciden</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -742,10 +730,87 @@ function GuiasEntrada() {
         </div>
       )}
 
+      {/* Filtros del historial */}
+      <div style={{
+        background: 'white',
+        padding: '1.5rem',
+        borderRadius: '12px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+        marginBottom: '1.5rem',
+        border: '1px solid #e2e8f0'
+      }}>
+        <h4 style={{ marginBottom: '1rem' }}>🔍 Filtros</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: '500' }}>
+              Nº Guía SUNAGRO
+            </label>
+            <input
+              type="text"
+              value={searchSunagro}
+              onChange={(e) => setSearchSunagro(e.target.value)}
+              placeholder="Buscar por número..."
+              style={{
+                width: '100%',
+                padding: '0.6rem',
+                border: '1px solid #ddd',
+                borderRadius: '8px'
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: '500' }}>
+              Desde
+            </label>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.6rem',
+                border: '1px solid #ddd',
+                borderRadius: '8px'
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: '500' }}>
+              Hasta
+            </label>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.6rem',
+                border: '1px solid #ddd',
+                borderRadius: '8px'
+              }}
+            />
+          </div>
+          <button
+            onClick={handleBuscar}
+            style={{
+              padding: '0.6rem 1.5rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            Buscar
+          </button>
+        </div>
+      </div>
+
       {/* Lista de guías */}
       <div>
         <h3 style={{ marginBottom: '1rem' }}>Historial de Guías</h3>
-        
+
         {guias.length === 0 ? (
           <div style={{
             padding: '3rem',
@@ -754,7 +819,7 @@ function GuiasEntrada() {
             borderRadius: '12px'
           }}>
             <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>📋</p>
-            <p>No hay guías registradas.</p>
+            <p>No hay guías en el rango seleccionado.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '1rem' }}>
@@ -776,7 +841,7 @@ function GuiasEntrada() {
                       {guia.numero_guia_sisecal && ` | SISECAL ${guia.numero_guia_sisecal}`}
                     </h4>
                     <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                      📅 {new Date(guia.fecha).toLocaleDateString('es-VE')} | 
+                      📅 {new Date(guia.fecha).toLocaleDateString('es-VE')} |
                       👤 Recibió: {guia.vocera_nombre}
                     </div>
                   </div>
@@ -833,7 +898,9 @@ function GuiasEntrada() {
                       </div>
                       {item.lotes_detalle && item.lotes_detalle.length > 0 && (
                         <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
-                          📦 {item.lotes_detalle.length} lote(s) registrado(s)
+                          📦 {item.lotes_detalle.length} lote(s) — Vence: {item.lotes_detalle.map(l =>
+                            new Date(l.fecha_vencimiento).toLocaleDateString('es-VE')
+                          ).join(', ')}
                         </div>
                       )}
                     </div>

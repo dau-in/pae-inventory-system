@@ -437,7 +437,6 @@ function AprobarGuias() {
                   <ul style={{ marginTop: '0.5rem', marginLeft: '1.5rem' }}>
                     <li>Actualizará el inventario (+{guiaSeleccionada.input?.length || 0} productos)</li>
                     <li>Sumará las cantidades al stock actual</li>
-                    <li>Actualizará fechas de vencimiento</li>
                     <li>Registrará la aprobación en auditoría</li>
                   </ul>
                 </>

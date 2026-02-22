@@ -86,7 +86,7 @@ function Layout() {
             📊 Dashboard
           </NavLink>
           <NavLink to="/productos" className={({ isActive }) => isActive ? 'active' : ''}>
-            📦 Productos
+            📦 Inventario
           </NavLink>
           <NavLink to="/guias-entrada" className={({ isActive }) => isActive ? 'active' : ''}>
             📋 Guías de Entrada

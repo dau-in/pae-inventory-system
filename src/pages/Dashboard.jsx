@@ -29,15 +29,9 @@ function Dashboard() {
         .select('*', { count: 'exact', head: true })
         .lt('stock', 10)
 
-      // Productos próximos a vencer (30 días)
-      const thirtyDaysFromNow = new Date()
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
-      const limitDate = `${thirtyDaysFromNow.getFullYear()}-${String(thirtyDaysFromNow.getMonth()+1).padStart(2,'0')}-${String(thirtyDaysFromNow.getDate()).padStart(2,'0')}`
-      const { count: expiringSoon } = await supabase
-        .from('product')
-        .select('*', { count: 'exact', head: true })
-        .not('expiration_date', 'is', null)
-        .lte('expiration_date', limitDate)
+      // Lotes próximos a vencer (30 días) — consulta desde input.lotes_detalle via RPC
+      const { data: lotesVencer } = await supabase.rpc('get_lotes_por_vencer', { p_dias: 30 })
+      const expiringSoon = lotesVencer?.length || 0
 
       // Asistencia de hoy - CORRECCIÓN: usar maybeSingle() en vez de single()
       const today = getLocalDate()
@@ -117,9 +111,9 @@ function Dashboard() {
         </div>
 
         <div className="card">
-          <h3 className="text-lg font-semibold mb-2">📅 Próximos a Vencer</h3>
+          <h3 className="text-lg font-semibold mb-2">📅 Lotes por Vencer</h3>
           <p className="text-2xl font-bold text-danger">{stats.expiringSoon}</p>
-          <p className="text-sm text-secondary">En los próximos 30 días</p>
+          <p className="text-sm text-secondary">Lotes que vencen en los próximos 30 días</p>
         </div>
 
         <div className="card">

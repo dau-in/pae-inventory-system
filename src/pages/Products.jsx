@@ -12,10 +12,7 @@ function Products() {
   const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     product_name: '',
-    product_code: '',
-    stock: '',
     unit_measure: 'kg',
-    expiration_date: '',
     description: '',
     id_category: ''
   })
@@ -76,36 +73,33 @@ function Products() {
 
     try {
       const dataToSubmit = {
-        ...formData,
-        stock: parseFloat(formData.stock) || 0,
-        id_category: formData.id_category ? parseInt(formData.id_category) : null,
-        expiration_date: formData.expiration_date || null
+        product_name: formData.product_name,
+        unit_measure: formData.unit_measure,
+        description: formData.description || null,
+        id_category: formData.id_category ? parseInt(formData.id_category) : null
       }
 
       if (editingProduct) {
-        // Al actualizar, no enviar stock (se controla via entradas/salidas)
-        const { stock, ...dataWithoutStock } = dataToSubmit
         const { error } = await supabase
           .from('product')
-          .update(dataWithoutStock)
+          .update(dataToSubmit)
           .eq('id_product', editingProduct.id_product)
 
         if (error) throw error
-        notifySuccess('Producto actualizado', 'Los cambios se guardaron correctamente')
+        notifySuccess('Rubro actualizado', 'Los cambios se guardaron correctamente')
       } else {
-        // Crear
         const { error } = await supabase
           .from('product')
           .insert(dataToSubmit)
 
         if (error) throw error
-        notifySuccess('Producto creado', 'El producto se registró correctamente')
+        notifySuccess('Rubro creado', 'El rubro se registró correctamente')
       }
 
       resetForm()
       loadProducts()
     } catch (error) {
-      console.error('Error guardando producto:', error)
+      console.error('Error guardando rubro:', error)
       notifyError('Error al guardar', error.message)
     } finally {
       setLoading(false)
@@ -116,10 +110,7 @@ function Products() {
     setEditingProduct(product)
     setFormData({
       product_name: product.product_name || '',
-      product_code: product.product_code || '',
-      stock: product.stock || '',
       unit_measure: product.unit_measure || 'kg',
-      expiration_date: product.expiration_date || '',
       description: product.description || '',
       id_category: product.id_category || ''
     })
@@ -127,7 +118,7 @@ function Products() {
   }
 
   const handleDelete = async (id) => {
-    const confirmed = await confirmDanger('¿Eliminar producto?', 'Esta acción no se puede deshacer')
+    const confirmed = await confirmDanger('¿Eliminar rubro?', 'Esta acción no se puede deshacer')
     if (!confirmed) return
 
     try {
@@ -137,10 +128,10 @@ function Products() {
         .eq('id_product', id)
 
       if (error) throw error
-      notifySuccess('Eliminado', 'El producto fue eliminado')
+      notifySuccess('Eliminado', 'El rubro fue eliminado')
       loadProducts()
     } catch (error) {
-      console.error('Error eliminando producto:', error)
+      console.error('Error eliminando rubro:', error)
       notifyError('Error al eliminar', error.message)
     }
   }
@@ -148,10 +139,7 @@ function Products() {
   const resetForm = () => {
     setFormData({
       product_name: '',
-      product_code: '',
-      stock: '',
       unit_measure: 'kg',
-      expiration_date: '',
       description: '',
       id_category: ''
     })
@@ -165,34 +153,18 @@ function Products() {
     return <span className="badge badge-success">OK</span>
   }
 
-  const getExpirationWarning = (date) => {
-    if (!date) return null
-    const today = new Date()
-    const expirationDate = new Date(date)
-    const daysUntilExpiration = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24))
-    
-    if (daysUntilExpiration < 0) {
-      return <span className="badge badge-danger">VENCIDO</span>
-    } else if (daysUntilExpiration <= 7) {
-      return <span className="badge badge-danger">{daysUntilExpiration} días</span>
-    } else if (daysUntilExpiration <= 30) {
-      return <span className="badge badge-warning">{daysUntilExpiration} días</span>
-    }
-    return null
-  }
-
   if (loading && products.length === 0) return <Loading />
 
   return (
     <div>
       <div className="flex-between mb-4">
-        <h2 className="text-2xl font-bold">Productos</h2>
+        <h2 className="text-2xl font-bold">Inventario de Rubros</h2>
         {userRole !== 3 && (
           <button
             className="btn btn-primary"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? '❌ Cancelar' : '➕ Nuevo Producto'}
+            {showForm ? '❌ Cancelar' : '➕ Nuevo Rubro'}
           </button>
         )}
       </div>
@@ -201,12 +173,12 @@ function Products() {
       {showForm && userRole !== 3 && (
         <div className="card mb-4">
           <h3 className="text-lg font-semibold mb-4">
-            {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+            {editingProduct ? 'Editar Rubro' : 'Nuevo Rubro'}
           </h3>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-2 gap-4">
               <div className="form-group">
-                <label>Nombre del producto *</label>
+                <label>Nombre del rubro *</label>
                 <input
                   type="text"
                   name="product_name"
@@ -214,34 +186,6 @@ function Products() {
                   onChange={handleInputChange}
                   required
                 />
-              </div>
-
-              <div className="form-group">
-                <label>Código</label>
-                <input
-                  type="text"
-                  name="product_code"
-                  value={formData.product_code}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>{editingProduct ? 'Stock actual (solo lectura)' : 'Stock inicial'}</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleInputChange}
-                  required={!editingProduct}
-                  disabled={!!editingProduct}
-                />
-                {editingProduct && (
-                  <p className="text-sm text-secondary mt-1">
-                    El stock se modifica mediante guías de entrada y menús diarios
-                  </p>
-                )}
               </div>
 
               <div className="form-group">
@@ -256,16 +200,6 @@ function Products() {
                   <option value="lt">Litros (lt)</option>
                   <option value="unidades">Unidades</option>
                 </select>
-              </div>
-
-              <div className="form-group">
-                <label>Fecha de vencimiento</label>
-                <input
-                  type="date"
-                  name="expiration_date"
-                  value={formData.expiration_date}
-                  onChange={handleInputChange}
-                />
               </div>
 
               <div className="form-group">
@@ -307,48 +241,38 @@ function Products() {
         </div>
       )}
 
-      {/* Tabla de productos */}
+      {/* Tabla de rubros */}
       <div className="card">
         <div className="overflow-x-auto">
           {products.length === 0 ? (
             <div className="empty-state">
-              <p>No hay productos registrados</p>
+              <p>No hay rubros registrados</p>
               <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>
-                Crear primer producto
+                Crear primer rubro
               </button>
             </div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>Código</th>
+                  <th>It.</th>
                   <th>Nombre</th>
                   <th>Categoría</th>
                   <th>Stock</th>
                   <th>Unidad</th>
-                  <th>Vencimiento</th>
                   {userRole !== 3 && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id_product}>
-                    <td>{product.product_code || '-'}</td>
+                    <td>It. {product.id_product}</td>
                     <td className="font-semibold">{product.product_name}</td>
                     <td>{product.category?.category_name || '-'}</td>
                     <td>
                       {product.stock} {getStockBadge(product.stock)}
                     </td>
                     <td>{product.unit_measure}</td>
-                    <td>
-                      {product.expiration_date ? (
-                        <>
-                          {new Date(product.expiration_date).toLocaleDateString('es-VE')}
-                          {' '}
-                          {getExpirationWarning(product.expiration_date)}
-                        </>
-                      ) : '-'}
-                    </td>
                     {userRole !== 3 && (
                       <td>
                         <div className="flex gap-2">

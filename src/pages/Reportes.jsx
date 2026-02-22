@@ -88,16 +88,7 @@ function Reportes() {
   }
 
   const loadVencimientosReport = async () => {
-    const thirtyDaysFromNow = new Date()
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
-    const limitDate = `${thirtyDaysFromNow.getFullYear()}-${String(thirtyDaysFromNow.getMonth()+1).padStart(2,'0')}-${String(thirtyDaysFromNow.getDate()).padStart(2,'0')}`
-
-    const { data, error } = await supabase
-      .from('product')
-      .select('*, category(category_name)')
-      .not('expiration_date', 'is', null)
-      .lte('expiration_date', limitDate)
-      .order('expiration_date', { ascending: true })
+    const { data, error } = await supabase.rpc('get_lotes_por_vencer', { p_dias: 365 })
 
     if (error) throw error
     setReportData(data || [])
@@ -174,10 +165,9 @@ function Reportes() {
         })
         break
       case 'vencimientos':
-        csv = 'Producto,Stock,Vencimiento,Días restantes\n'
+        csv = 'Producto,Cantidad Lote,Stock Total,Vencimiento,Días restantes\n'
         reportData.forEach(item => {
-          const days = Math.ceil((new Date(item.expiration_date) - new Date()) / (1000 * 60 * 60 * 24))
-          csv += `"${item.product_name}",${item.stock},${item.expiration_date},${days}\n`
+          csv += `"${item.product_name}",${item.cantidad_lote},${item.stock},${item.fecha_vencimiento},${item.dias_restantes}\n`
         })
         break
       case 'consumo':
@@ -207,7 +197,7 @@ function Reportes() {
               <option value="stock">Stock actual</option>
               <option value="entradas">Entradas (guías)</option>
               <option value="salidas">Salidas (menús)</option>
-              <option value="vencimientos">Productos por vencer</option>
+              <option value="vencimientos">Lotes por vencer</option>
               <option value="consumo">Consumo por producto</option>
             </select>
           </div>
@@ -332,33 +322,32 @@ function Reportes() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Stock</th>
+                    <th>Cantidad Lote</th>
+                    <th>Stock Total</th>
                     <th>Vencimiento</th>
                     <th>Días restantes</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.map((item) => {
-                    const days = Math.ceil((new Date(item.expiration_date) - new Date()) / (1000 * 60 * 60 * 24))
-                    return (
-                      <tr key={item.id_product}>
-                        <td className="font-semibold">{item.product_name}</td>
-                        <td>{item.stock} {item.unit_measure}</td>
-                        <td>{new Date(item.expiration_date).toLocaleDateString('es-VE')}</td>
-                        <td>
-                          {days < 0 ? (
-                            <span className="badge badge-danger">VENCIDO</span>
-                          ) : days <= 7 ? (
-                            <span className="badge badge-danger">{days} días</span>
-                          ) : days <= 30 ? (
-                            <span className="badge badge-warning">{days} días</span>
-                          ) : (
-                            <span>{days} días</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {reportData.map((item, index) => (
+                    <tr key={index}>
+                      <td className="font-semibold">{item.product_name}</td>
+                      <td>{item.cantidad_lote} {item.unit_measure}</td>
+                      <td>{item.stock} {item.unit_measure}</td>
+                      <td>{new Date(item.fecha_vencimiento).toLocaleDateString('es-VE')}</td>
+                      <td>
+                        {item.dias_restantes < 0 ? (
+                          <span className="badge badge-danger">VENCIDO</span>
+                        ) : item.dias_restantes <= 7 ? (
+                          <span className="badge badge-danger">{item.dias_restantes} días</span>
+                        ) : item.dias_restantes <= 30 ? (
+                          <span className="badge badge-warning">{item.dias_restantes} días</span>
+                        ) : (
+                          <span>{item.dias_restantes} días</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
