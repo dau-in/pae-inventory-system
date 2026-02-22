@@ -99,13 +99,22 @@ export const createUserAccount = async (email, password, fullName, username, idR
   return authData.user
 }
 
-// Helper para cambiar la contraseña de un usuario (requiere service_role key)
+// Helper para cambiar la contraseña de un usuario
+// Si el userId coincide con el usuario actual, usa el cliente estándar (evita 403 del propietario del proyecto)
+// Si es un usuario distinto, usa la Admin API con service_role key
 export const changeUserPassword = async (userId, newPassword) => {
+  const currentUser = await getCurrentUser()
+
+  if (currentUser && currentUser.id === userId) {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+    return data
+  }
+
   const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
     userId,
     { password: newPassword }
   )
-
   if (error) throw error
   return data
 }
