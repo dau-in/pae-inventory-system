@@ -97,7 +97,7 @@ function AprobarGuias() {
 
       if (error) throw error
 
-      notifySuccess('Guía aprobada', `Guía #${guiaSeleccionada.numero_guia_sunagro} aprobada. ${data.productos_procesados} productos actualizados en inventario.`)
+      notifySuccess('Guía aprobada', `Guía #${guiaSeleccionada.numero_guia_sunagro} aprobada. ${data.productos_procesados} rubros actualizados en inventario.`)
 
       cerrarModal()
       loadGuiasPendientes()
@@ -271,7 +271,7 @@ function AprobarGuias() {
               {/* Productos */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h4 style={{ marginBottom: '1rem' }}>
-                  📦 Productos a Ingresar ({guia.input?.length || 0})
+                  📦 Rubros a Ingresar ({guia.input?.length || 0})
                 </h4>
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                   {guia.input?.map(item => (
@@ -435,7 +435,7 @@ function AprobarGuias() {
                     <strong>Esta acción:</strong>
                   </p>
                   <ul style={{ marginTop: '0.5rem', marginLeft: '1.5rem' }}>
-                    <li>Actualizará el inventario (+{guiaSeleccionada.input?.length || 0} productos)</li>
+                    <li>Actualizará el inventario (+{guiaSeleccionada.input?.length || 0} rubros)</li>
                     <li>Sumará las cantidades al stock actual</li>
                     <li>Registrará la aprobación en auditoría</li>
                   </ul>

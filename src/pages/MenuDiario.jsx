@@ -161,11 +161,11 @@ function MenuDiario() {
     }
 
     if (detalles.length === 0) {
-      notifyWarning('Campo requerido', 'Debe agregar al menos un producto')
+      notifyWarning('Campo requerido', 'Debe agregar al menos un rubro')
       return
     }
 
-    const confirmed = await confirmAction('¿Confirmar menú?', 'Esto descontará los productos del inventario', 'Confirmar menú')
+    const confirmed = await confirmAction('¿Confirmar menú?', 'Esto descontará los rubros del inventario', 'Confirmar menú')
     if (!confirmed) return
 
     setLoading(true)
@@ -338,14 +338,14 @@ function MenuDiario() {
             <hr style={{ margin: '1.5rem 0' }} />
 
             <div className="flex-between mb-4">
-              <h4 className="font-semibold">Productos del menú</h4>
+              <h4 className="font-semibold">Rubros del menú</h4>
               <button 
                 type="button" 
                 className="btn btn-sm btn-success" 
                 onClick={addDetalle}
                 disabled={!formData.id_asistencia}
               >
-                ➕ Agregar producto
+                ➕ Agregar rubro
               </button>
             </div>
 
@@ -363,7 +363,7 @@ function MenuDiario() {
                     <div key={index} className="card mb-2" style={{ background: '#f8fafc' }}>
                       <div className="grid grid-3 gap-2">
                         <div className="form-group">
-                          <label>Producto *</label>
+                          <label>Rubro *</label>
                           <select
                             value={detalle.id_product}
                             onChange={(e) => handleDetalleChange(index, 'id_product', e.target.value)}
@@ -472,7 +472,7 @@ function MenuDiario() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Producto</th>
+                        <th>Rubro</th>
                         <th>Planificado</th>
                         <th>Real usado</th>
                       </tr>

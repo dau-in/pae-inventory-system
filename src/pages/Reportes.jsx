@@ -147,31 +147,31 @@ function Reportes() {
 
     switch (reportType) {
       case 'stock':
-        csv = 'Producto,Categoría,Stock,Unidad\n'
+        csv = 'Rubro,Categoría,Stock,Unidad\n'
         reportData.forEach(item => {
           csv += `"${item.product_name}","${item.category?.category_name || '-'}",${item.stock},${item.unit_measure}\n`
         })
         break
       case 'entradas':
-        csv = 'Fecha,Guía,Producto,Cantidad,Unidad\n'
+        csv = 'Fecha,Guía,Rubro,Cantidad,Unidad\n'
         reportData.forEach(item => {
           csv += `${item.fecha},"${item.guia_entrada?.numero_guia_sunagro || '-'}","${item.product?.product_name}",${item.amount},${item.product?.unit_measure}\n`
         })
         break
       case 'salidas':
-        csv = 'Fecha,Producto,Cantidad,Unidad,Motivo\n'
+        csv = 'Fecha,Rubro,Cantidad,Unidad,Motivo\n'
         reportData.forEach(item => {
           csv += `${item.fecha},"${item.product?.product_name}",${item.amount},${item.product?.unit_measure},"${item.motivo || '-'}"\n`
         })
         break
       case 'vencimientos':
-        csv = 'Producto,Cantidad Lote,Stock Total,Vencimiento,Días restantes\n'
+        csv = 'Rubro,Cantidad Lote,Stock Total,Vencimiento,Días restantes\n'
         reportData.forEach(item => {
           csv += `"${item.product_name}",${item.cantidad_lote},${item.stock},${item.fecha_vencimiento},${item.dias_restantes}\n`
         })
         break
       case 'consumo':
-        csv = 'Producto,Total consumido,Unidad,Veces usado\n'
+        csv = 'Rubro,Total consumido,Unidad,Veces usado\n'
         reportData.forEach(item => {
           csv += `"${item.product_name}",${item.total.toFixed(2)},${item.unit_measure},${item.veces}\n`
         })
@@ -198,7 +198,7 @@ function Reportes() {
               <option value="entradas">Entradas (guías)</option>
               <option value="salidas">Salidas (menús)</option>
               <option value="vencimientos">Lotes por vencer</option>
-              <option value="consumo">Consumo por producto</option>
+              <option value="consumo">Consumo por rubro</option>
             </select>
           </div>
 
@@ -244,7 +244,7 @@ function Reportes() {
               <table>
                 <thead>
                   <tr>
-                    <th>Producto</th>
+                    <th>Rubro</th>
                     <th>Categoría</th>
                     <th>Stock</th>
                     <th>Estado</th>
@@ -277,7 +277,7 @@ function Reportes() {
                   <tr>
                     <th>Fecha</th>
                     <th>Guía</th>
-                    <th>Producto</th>
+                    <th>Rubro</th>
                     <th>Cantidad</th>
                   </tr>
                 </thead>
@@ -299,7 +299,7 @@ function Reportes() {
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Producto</th>
+                    <th>Rubro</th>
                     <th>Cantidad</th>
                     <th>Motivo</th>
                   </tr>
@@ -321,7 +321,7 @@ function Reportes() {
               <table>
                 <thead>
                   <tr>
-                    <th>Producto</th>
+                    <th>Rubro</th>
                     <th>Cantidad Lote</th>
                     <th>Stock Total</th>
                     <th>Vencimiento</th>
@@ -356,7 +356,7 @@ function Reportes() {
               <table>
                 <thead>
                   <tr>
-                    <th>Producto</th>
+                    <th>Rubro</th>
                     <th>Total consumido</th>
                     <th>Veces usado</th>
                     <th>Promedio por uso</th>

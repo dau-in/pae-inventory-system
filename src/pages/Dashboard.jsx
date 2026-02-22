@@ -100,14 +100,14 @@ function Dashboard() {
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-2 mb-4">
         <div className="card">
-          <h3 className="text-lg font-semibold mb-2">📦 Total de Productos</h3>
+          <h3 className="text-lg font-semibold mb-2">📦 Total de Rubros</h3>
           <p className="text-2xl font-bold text-primary">{stats.totalProducts}</p>
         </div>
 
         <div className="card">
           <h3 className="text-lg font-semibold mb-2">⚠️ Stock Bajo</h3>
           <p className="text-2xl font-bold text-warning">{stats.lowStock}</p>
-          <p className="text-sm text-secondary">Productos con menos de 10 unidades</p>
+          <p className="text-sm text-secondary">Rubros con menos de 10 unidades</p>
         </div>
 
         <div className="card">

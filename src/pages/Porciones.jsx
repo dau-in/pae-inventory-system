@@ -178,7 +178,7 @@ function Porciones() {
       <div className="flex-between mb-4">
         <div>
           <h2 className="text-2xl font-bold">Configuración de Porciones</h2>
-          <p className="text-secondary">Define cuántas porciones da cada unidad de producto</p>
+          <p className="text-secondary">Define cuántas porciones da cada unidad de rubro</p>
         </div>
         <button
           className="btn btn-primary"
@@ -192,7 +192,7 @@ function Porciones() {
       {/* Info box */}
       <div className="alert alert-warning mb-4">
         💡 <strong>¿Cómo funciona?</strong> Cuando crees un menú diario, el sistema calculará automáticamente
-        cuánto necesitas de cada producto basándose en estas configuraciones y la cantidad de alumnos.
+        cuánto necesitas de cada rubro basándose en estas configuraciones y la cantidad de alumnos.
         <br/><strong>Ejemplo:</strong> Si 1 kg de arroz = 12 porciones y tienes {ultimaAsistencia || '---'} alumnos,
         el sistema calculará que necesitas 64.5 kg de arroz.
       </div>
@@ -205,7 +205,7 @@ function Porciones() {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-2 gap-4">
               <div className="form-group">
-                <label>Producto *</label>
+                <label>Rubro *</label>
                 <select
                   name="id_product"
                   value={formData.id_product}
@@ -290,7 +290,7 @@ function Porciones() {
             <table>
               <thead>
                 <tr>
-                  <th>Producto</th>
+                  <th>Rubro</th>
                   <th>Porciones por unidad</th>
                   <th>Ejemplo de cálculo</th>
                   <th>Notas</th>

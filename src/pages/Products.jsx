@@ -39,7 +39,7 @@ function Products() {
       setProducts(data || [])
     } catch (error) {
       console.error('Error cargando productos:', error)
-      notifyError('Error', 'No se pudieron cargar los productos')
+      notifyError('Error', 'No se pudieron cargar los rubros')
     } finally {
       setLoading(false)
     }

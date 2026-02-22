@@ -149,7 +149,7 @@ function GuiasEntrada() {
     e.preventDefault()
 
     if (detalles.length === 0) {
-      notifyWarning('Campo requerido', 'Debe agregar al menos un producto')
+      notifyWarning('Campo requerido', 'Debe agregar al menos un rubro')
       return
     }
 
@@ -160,7 +160,7 @@ function GuiasEntrada() {
       for (let j = 0; j < detalle.lotes.length; j++) {
         const lote = detalle.lotes[j]
         if (!lote.cantidad || !lote.fecha_vencimiento) {
-          notifyWarning('Datos incompletos', `Producto ${i + 1}, Lote ${j + 1}: Complete cantidad y fecha de vencimiento`)
+          notifyWarning('Datos incompletos', `Rubro ${i + 1}, Lote ${j + 1}: Complete cantidad y fecha de vencimiento`)
           return
         }
       }
@@ -169,7 +169,7 @@ function GuiasEntrada() {
       const cantidadTotal = parseFloat(detalle.amount || 0)
 
       if (Math.abs(sumaLotes - cantidadTotal) > 0.01) {
-        notifyWarning('Lotes no coinciden', `Producto ${i + 1}: La suma de lotes (${sumaLotes}) no coincide con la cantidad total (${cantidadTotal})`)
+        notifyWarning('Lotes no coinciden', `Rubro ${i + 1}: La suma de lotes (${sumaLotes}) no coincide con la cantidad total (${cantidadTotal})`)
         return
       }
     }
@@ -449,7 +449,7 @@ function GuiasEntrada() {
             {/* Productos */}
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h4>Productos Recibidos</h4>
+                <h4>Rubros Recibidos</h4>
                 <button
                   type="button"
                   onClick={addDetalle}
@@ -462,7 +462,7 @@ function GuiasEntrada() {
                     cursor: 'pointer'
                   }}
                 >
-                  + Agregar Producto
+                  + Agregar Rubro
                 </button>
               </div>
 
@@ -474,7 +474,7 @@ function GuiasEntrada() {
                   borderRadius: '8px',
                   color: '#64748b'
                 }}>
-                  No hay productos agregados. Click en "Agregar Producto" para comenzar.
+                  No hay rubros agregados. Click en "Agregar Rubro" para comenzar.
                 </div>
               )}
 
@@ -490,7 +490,7 @@ function GuiasEntrada() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <h5 style={{ color: '#475569' }}>Producto #{index + 1}</h5>
+                    <h5 style={{ color: '#475569' }}>Rubro #{index + 1}</h5>
                     <button
                       type="button"
                       onClick={() => removeDetalle(index)}
@@ -511,7 +511,7 @@ function GuiasEntrada() {
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                        Producto*
+                        Rubro*
                       </label>
                       <select
                         value={detalle.id_product}
@@ -635,7 +635,7 @@ function GuiasEntrada() {
 
                         <div>
                           <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
-                            Vencimiento*
+                            Vencimiento / Vida Útil*
                           </label>
                           <input
                             type="date"
@@ -649,6 +649,9 @@ function GuiasEntrada() {
                               borderRadius: '6px'
                             }}
                           />
+                          <small style={{ display: 'block', marginTop: '0.25rem', color: '#64748b', fontSize: '0.75rem' }}>
+                            Para verduras o perecederos sin fecha, ingrese la fecha máxima estimada para su consumo.
+                          </small>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -876,7 +879,7 @@ function GuiasEntrada() {
 
                 <div>
                   <h5 style={{ marginBottom: '0.75rem' }}>
-                    Productos ({guia.input?.length || 0})
+                    Rubros ({guia.input?.length || 0})
                   </h5>
                   {guia.input?.map(item => (
                     <div

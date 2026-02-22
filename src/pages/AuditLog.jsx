@@ -133,7 +133,7 @@ function AuditLog() {
             <label>Tabla afectada</label>
             <select name="table_affected" value={filters.table_affected} onChange={handleFilterChange}>
               <option value="">Todas</option>
-              <option value="product">Productos</option>
+              <option value="product">Rubros</option>
               <option value="guia_entrada">Guías de entrada</option>
               <option value="menu_diario">Menús</option>
               <option value="output">Salidas</option>
