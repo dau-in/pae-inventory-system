@@ -7,8 +7,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import GuiasEntrada from './pages/GuiasEntrada'
-import Asistencia from './pages/Asistencia'
-import MenuDiario from './pages/MenuDiario'
+import RegistroDiario from './pages/RegistroDiario'
 import Porciones from './pages/Porciones'
 import Reportes from './pages/Reportes'
 import AuditLog from './pages/AuditLog'
@@ -60,8 +59,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/productos" element={<Products />} />
             <Route path="/guias-entrada" element={<GuiasEntrada />} />
-            <Route path="/asistencia" element={<Asistencia />} />
-            <Route path="/menu-diario" element={<MenuDiario />} />
+            <Route path="/registro-diario" element={<RegistroDiario />} />
             <Route path="/porciones" element={<Porciones />} />
             <Route path="/reportes" element={<Reportes />} />
             <Route path="/auditoria" element={<AuditLog />} />

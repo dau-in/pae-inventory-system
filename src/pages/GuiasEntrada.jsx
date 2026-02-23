@@ -520,11 +520,14 @@ function GuiasEntrada() {
                         }}
                       >
                         <option value="">Seleccionar...</option>
-                        {products.map(product => (
-                          <option key={product.id_product} value={product.id_product}>
-                            {product.product_name} ({product.unit_measure})
-                          </option>
-                        ))}
+                        {products.map(product => {
+                          const yaUsado = detalles.some((d, i) => i !== index && String(d.id_product) === String(product.id_product))
+                          return (
+                            <option key={product.id_product} value={product.id_product} disabled={yaUsado}>
+                              {product.product_name} ({product.unit_measure}){yaUsado ? ' — ya agregado' : ''}
+                            </option>
+                          )
+                        })}
                       </select>
                     </div>
 
@@ -564,6 +567,9 @@ function GuiasEntrada() {
                           borderRadius: '8px'
                         }}
                       />
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                        Opcional. Cantidad de sacos, pacas o cajas físicas que llegaron.
+                      </p>
                     </div>
                   </div>
 
@@ -574,7 +580,7 @@ function GuiasEntrada() {
                     borderRadius: '8px',
                     border: '2px dashed #3b82f6'
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <h6 style={{ color: '#3b82f6', margin: 0 }}>
                         📦 Lotes / Vencimientos
                       </h6>
@@ -594,6 +600,10 @@ function GuiasEntrada() {
                         + Agregar Lote
                       </button>
                     </div>
+                    <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: '#64748b' }}>
+                      Usa múltiples lotes solo si el rubro llegó con diferentes fechas de caducidad.
+                      De lo contrario, registra un solo lote con el total.
+                    </p>
 
                     {detalle.lotes.map((lote, loteIndex) => (
                       <div

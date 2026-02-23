@@ -132,7 +132,11 @@ function Products() {
       loadProducts()
     } catch (error) {
       console.error('Error eliminando rubro:', error)
-      notifyError('Error al eliminar', error.message)
+      if (error.code === '23503' || error.status === 409) {
+        notifyError('No se puede eliminar', 'Este rubro ya está siendo usado en Porciones, Entradas o Salidas. Para mantener el historial, no debe borrarse.')
+      } else {
+        notifyError('Error al eliminar', error.message)
+      }
     }
   }
 

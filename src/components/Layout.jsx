@@ -97,11 +97,8 @@ function Layout() {
               ✅ Aprobar Guías
             </NavLink>
           )}
-          <NavLink to="/asistencia" className={({ isActive }) => isActive ? 'active' : ''}>
-            👥 Asistencia
-          </NavLink>
-          <NavLink to="/menu-diario" className={({ isActive }) => isActive ? 'active' : ''}>
-            🍴 Menú Diario
+          <NavLink to="/registro-diario" className={({ isActive }) => isActive ? 'active' : ''}>
+            🍴 Registro Diario
           </NavLink>
           <NavLink to="/porciones" className={({ isActive }) => isActive ? 'active' : ''}>
             ⚖️ Porciones

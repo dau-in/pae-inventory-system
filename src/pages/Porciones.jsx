@@ -13,7 +13,7 @@ function Porciones() {
   const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     id_product: '',
-    porciones_por_unidad: '',
+    rendimiento_por_unidad: '',
     unit_measure: 'kg',
     notas: ''
   })
@@ -28,12 +28,12 @@ function Porciones() {
   const loadUltimaAsistencia = async () => {
     try {
       const { data } = await supabase
-        .from('asistencia_diaria')
-        .select('total_alumnos')
+        .from('registro_diario')
+        .select('asistencia_total')
         .order('fecha', { ascending: false })
         .limit(1)
         .maybeSingle()
-      setUltimaAsistencia(data?.total_alumnos || null)
+      setUltimaAsistencia(data?.asistencia_total || null)
     } catch (error) {
       console.error('Error cargando asistencia:', error)
     }
@@ -94,7 +94,7 @@ function Porciones() {
     try {
       const dataToSubmit = {
         id_product: parseInt(formData.id_product),
-        porciones_por_unidad: parseFloat(formData.porciones_por_unidad),
+        rendimiento_por_unidad: parseFloat(formData.rendimiento_por_unidad),
         unit_measure: formData.unit_measure,
         notas: formData.notas
       }
@@ -130,7 +130,7 @@ function Porciones() {
     setEditingPorcion(porcion)
     setFormData({
       id_product: porcion.id_product,
-      porciones_por_unidad: porcion.porciones_por_unidad,
+      rendimiento_por_unidad: porcion.rendimiento_por_unidad,
       unit_measure: porcion.unit_measure,
       notas: porcion.notas || ''
     })
@@ -159,7 +159,7 @@ function Porciones() {
   const resetForm = () => {
     setFormData({
       id_product: '',
-      porciones_por_unidad: '',
+      rendimiento_por_unidad: '',
       unit_measure: 'kg',
       notas: ''
     })
@@ -191,10 +191,10 @@ function Porciones() {
 
       {/* Info box */}
       <div className="alert alert-warning mb-4">
-        💡 <strong>¿Cómo funciona?</strong> Cuando crees un menú diario, el sistema calculará automáticamente
-        cuánto necesitas de cada rubro basándose en estas configuraciones y la cantidad de alumnos.
-        <br/><strong>Ejemplo:</strong> Si 1 kg de arroz = 12 porciones y tienes {ultimaAsistencia || '---'} alumnos,
-        el sistema calculará que necesitas 64.5 kg de arroz.
+        💡 <strong>¿Cómo configurar las porciones?</strong><br/>
+        Aquí le enseñas al sistema para cuántos niños alcanza 1 kilo, 1 litro o 1 unidad de cada rubro.
+        Al registrar el menú diario, el sistema usará este número para descontar automáticamente
+        la cantidad exacta del inventario.
       </div>
 
       {showForm && userRole !== 3 && (
@@ -223,18 +223,18 @@ function Porciones() {
               </div>
 
               <div className="form-group">
-                <label>Porciones por unidad *</label>
+                <label>Rendimiento (porciones) *</label>
                 <input
                   type="number"
                   step="0.01"
-                  name="porciones_por_unidad"
-                  value={formData.porciones_por_unidad}
+                  name="rendimiento_por_unidad"
+                  value={formData.rendimiento_por_unidad}
                   onChange={handleInputChange}
                   placeholder="Ej: 12"
                   required
                 />
                 <p className="text-sm text-secondary mt-1">
-                  Cuántas porciones se obtienen de 1 unidad
+                  Ej: Si escribes 5, significa que 1 {formData.unit_measure} alcanza para 5 niños.
                 </p>
               </div>
 
@@ -291,7 +291,7 @@ function Porciones() {
               <thead>
                 <tr>
                   <th>Rubro</th>
-                  <th>Porciones por unidad</th>
+                  <th>Rendimiento (porciones)</th>
                   <th>Ejemplo de cálculo</th>
                   <th>Notas</th>
                   {userRole !== 3 && <th>Acciones</th>}
@@ -301,7 +301,7 @@ function Porciones() {
                 {porciones.map((porcion) => {
                   const alumnosEjemplo = ultimaAsistencia || 0
                   const cantidadNecesaria = alumnosEjemplo > 0
-                    ? (alumnosEjemplo / porcion.porciones_por_unidad).toFixed(2)
+                    ? (alumnosEjemplo / porcion.rendimiento_por_unidad).toFixed(2)
                     : '-'
 
                   return (
@@ -309,7 +309,7 @@ function Porciones() {
                       <td className="font-semibold">{porcion.product?.product_name}</td>
                       <td>
                         <span className="text-lg font-bold text-primary">
-                          {porcion.porciones_por_unidad}
+                          {porcion.rendimiento_por_unidad}
                         </span>
                         <span className="text-sm text-secondary ml-1">
                           porciones / {porcion.unit_measure}
