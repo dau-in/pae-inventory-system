@@ -189,7 +189,7 @@ function RegistroDiario() {
 
       {/* Formulario */}
       {showForm && userRole !== 3 && (
-        <div className="card mb-4" style={{ border: '2px solid #dbeafe' }}>
+        <div className="card mb-4" style={{ border: '2px solid rgba(254, 215, 170, 0.5)' }}>
           <h3 className="text-lg font-semibold mb-4">Registrar Operación Diaria</h3>
 
           <form onSubmit={handleSubmit}>
@@ -299,13 +299,13 @@ function RegistroDiario() {
             </div>
 
             {/* Info box */}
-            <div className="alert alert-warning mb-4" style={{ background: '#eff6ff', border: '1px solid #93c5fd', color: '#1e40af' }}>
+            <div className="alert alert-warning mb-4">
               ℹ️ La operación descontará automáticamente del inventario usando <strong>FIFO</strong> (primero los lotes más antiguos).
               Cada rubro seleccionado consumirá: asistencia / rendimiento por unidad.
             </div>
 
             <div className="flex gap-2">
-              <button type="submit" className="btn btn-success" disabled={submitting}>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
                 {submitting ? 'Procesando...' : '🍳 Registrar Operación'}
               </button>
               <button type="button" className="btn btn-secondary" onClick={resetForm}>

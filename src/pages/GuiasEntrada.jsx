@@ -288,8 +288,8 @@ function GuiasEntrada() {
             onClick={() => setShowForm(!showForm)}
             style={{
               padding: '0.75rem 1.5rem',
-              background: showForm ? '#64748b' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
+              background: showForm ? '#64748b' : '#FFD9A8',
+              color: showForm ? 'white' : '#0f172a',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -306,12 +306,12 @@ function GuiasEntrada() {
           <h3 style={{ marginBottom: '1rem' }}>Registrar Nueva Guía</h3>
           <div style={{
             padding: '1rem',
-            background: '#eff6ff',
-            border: '1px solid #3b82f6',
+            background: '#FFF7ED',
+            border: '1px solid rgba(254, 215, 170, 0.5)',
             borderRadius: '8px',
             marginBottom: '1.5rem'
           }}>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#1e40af' }}>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: '#9a3412' }}>
               ℹ️ <strong>Importante:</strong> Esta guía quedará en estado <strong>PENDIENTE</strong> hasta que el Director la apruebe.
               El inventario NO se actualizará automáticamente.
             </p>
@@ -449,8 +449,8 @@ function GuiasEntrada() {
                   onClick={addDetalle}
                   style={{
                     padding: '0.5rem 1rem',
-                    background: '#10b981',
-                    color: 'white',
+                    background: '#FFD9A8',
+                    color: '#0f172a',
                     border: 'none',
                     borderRadius: '6px',
                     cursor: 'pointer'
@@ -681,7 +681,7 @@ function GuiasEntrada() {
                     <div style={{
                       marginTop: '0.75rem',
                       padding: '0.75rem',
-                      background: '#eff6ff',
+                      background: '#FFF7ED',
                       borderRadius: '6px',
                       fontSize: '0.9rem'
                     }}>
@@ -720,8 +720,8 @@ function GuiasEntrada() {
                 disabled={loading}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
+                  background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #FFD9A8 0%, #FDBA74 100%)',
+                  color: '#0f172a',
                   border: 'none',
                   borderRadius: '8px',
                   cursor: loading ? 'not-allowed' : 'pointer',
@@ -799,8 +799,8 @@ function GuiasEntrada() {
             onClick={handleBuscar}
             style={{
               padding: '0.6rem 1.5rem',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
+              background: '#FFD9A8',
+              color: '#0f172a',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',

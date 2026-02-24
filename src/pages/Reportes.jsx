@@ -226,7 +226,7 @@ function Reportes() {
           )}
         </div>
 
-        <button className="btn btn-success mt-2" onClick={exportToCSV}>
+        <button className="btn btn-primary mt-2" onClick={exportToCSV}>
           📥 Exportar a CSV
         </button>
       </div>

@@ -77,7 +77,10 @@ function Layout() {
       {/* Sidebar */}
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🍽️ PAE System</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <img src="/logo.png" alt="PAE Logo" style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.375rem' }} />
+            <h2 style={{ margin: 0 }}>PAE System</h2>
+          </div>
           <button className="close-menu" onClick={toggleMenu}>✕</button>
         </div>
         
@@ -120,6 +123,11 @@ function Layout() {
           )}
         </nav>
 
+        <div className="sidebar-credits">
+          <span>⚙️ Desarrollado por: <a href="https://github.com/dau-in/pae-inventory-system" target="_blank" rel="noopener noreferrer">Darwin Aguirre</a></span><br/>
+          <span>🎨 Arte por: <a href="https://ghostyentity.carrd.co/" target="_blank" rel="noopener noreferrer">Isabella Martínez</a></span>
+        </div>
+
         <div className="sidebar-footer">
           {userData && (
             <div className="user-info">
@@ -135,13 +143,10 @@ function Layout() {
 
       {/* Main content */}
       <div className="main-content">
-        {/* Header */}
-        <header className="header">
-          <button className="menu-toggle" onClick={toggleMenu}>
-            ☰
-          </button>
-          <h1>Escuela Nacional Maestro Carlos González</h1>
-        </header>
+        {/* Mobile menu toggle */}
+        <button className="menu-toggle" onClick={toggleMenu}>
+          ☰
+        </button>
 
         {/* Page content */}
         <main className="content">

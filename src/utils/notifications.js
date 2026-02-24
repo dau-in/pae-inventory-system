@@ -5,7 +5,7 @@ export const notifySuccess = (title, text) => {
     icon: 'success',
     title,
     text,
-    confirmButtonColor: '#10b981'
+    confirmButtonColor: '#FFD9A8'
   })
 }
 
@@ -32,7 +32,7 @@ export const notifyInfo = (title, html) => {
     icon: 'info',
     title,
     html,
-    confirmButtonColor: '#3b82f6'
+    confirmButtonColor: '#FFD9A8'
   })
 }
 
@@ -42,7 +42,7 @@ export const confirmAction = async (title, text, confirmText = 'Confirmar') => {
     title,
     text,
     showCancelButton: true,
-    confirmButtonColor: '#10b981',
+    confirmButtonColor: '#FFD9A8',
     cancelButtonColor: '#94a3b8',
     confirmButtonText: confirmText,
     cancelButtonText: 'Cancelar'

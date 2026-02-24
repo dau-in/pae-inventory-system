@@ -308,7 +308,7 @@ function Porciones() {
                     <tr key={porcion.id_porcion}>
                       <td className="font-semibold">{porcion.product?.product_name}</td>
                       <td>
-                        <span className="text-lg font-bold text-primary">
+                        <span className="text-lg font-bold text-slate-800">
                           {porcion.rendimiento_por_unidad}
                         </span>
                         <span className="text-sm text-secondary ml-1">

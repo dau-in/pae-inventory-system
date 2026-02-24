@@ -110,7 +110,7 @@ function AuditLog() {
           <h2 className="text-2xl font-bold">Auditoría del Sistema</h2>
           <p className="text-secondary">Registro completo de todas las acciones</p>
         </div>
-        <button className="btn btn-success" onClick={exportToCSV}>
+        <button className="btn btn-primary" onClick={exportToCSV}>
           📥 Exportar
         </button>
       </div>

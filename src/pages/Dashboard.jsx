@@ -101,24 +101,24 @@ function Dashboard() {
       <div className="grid grid-2 mb-4">
         <div className="card">
           <h3 className="text-lg font-semibold mb-2">📦 Total de Rubros</h3>
-          <p className="text-2xl font-bold text-primary">{stats.totalProducts}</p>
+          <p className="text-2xl font-heading font-bold text-blue-600">{stats.totalProducts}</p>
         </div>
 
         <div className="card">
           <h3 className="text-lg font-semibold mb-2">⚠️ Stock Bajo</h3>
-          <p className="text-2xl font-bold text-warning">{stats.lowStock}</p>
+          <p className="text-2xl font-heading font-bold text-amber-500">{stats.lowStock}</p>
           <p className="text-sm text-secondary">Rubros con menos de 10 unidades</p>
         </div>
 
         <div className="card">
           <h3 className="text-lg font-semibold mb-2">📅 Lotes por Vencer</h3>
-          <p className="text-2xl font-bold text-danger">{stats.expiringSoon}</p>
+          <p className="text-2xl font-heading font-bold text-red-500">{stats.expiringSoon}</p>
           <p className="text-sm text-secondary">Lotes que vencen en los próximos 30 días</p>
         </div>
 
         <div className="card">
           <h3 className="text-lg font-semibold mb-2">👥 Asistencia Hoy</h3>
-          <p className="text-2xl font-bold text-success">{stats.todayAttendance}</p>
+          <p className="text-2xl font-heading font-bold text-emerald-500">{stats.todayAttendance}</p>
           <p className="text-sm text-secondary">
             {stats.todayAttendance === 0 ? 'Sin registro' : 'Alumnos presentes'}
           </p>
