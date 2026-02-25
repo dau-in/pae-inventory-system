@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getLocalDate } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifyError } from '../utils/notifications'
+import { Download } from 'lucide-react'
 
 function AuditLog() {
   const [loading, setLoading] = useState(true)
@@ -110,8 +111,8 @@ function AuditLog() {
           <h2 className="text-2xl font-bold">Auditoría del Sistema</h2>
           <p className="text-secondary">Registro completo de todas las acciones</p>
         </div>
-        <button className="btn btn-primary" onClick={exportToCSV}>
-          📥 Exportar
+        <button className="btn btn-primary flex items-center gap-2" onClick={exportToCSV}>
+          <Download className="w-4 h-4" /> Exportar
         </button>
       </div>
 
@@ -171,7 +172,7 @@ function AuditLog() {
         </div>
 
         {loading ? (
-          <Loading />
+          <GlobalLoader text="Cargando auditoría..." />
         ) : logs.length === 0 ? (
           <div className="empty-state">
             <p>No hay registros de auditoría</p>

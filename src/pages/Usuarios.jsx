@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getUserData, getCurrentUser, createUserAccount, changeUserPassword } from '../supabaseClient'
 import { notifySuccess, notifyError, notifyWarning, notifyInfo, confirmDanger, confirmAction } from '../utils/notifications'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
+import { Lock, Plus, KeyRound, Pencil, Check, Ban } from 'lucide-react'
 
 function Usuarios() {
   const [loading, setLoading] = useState(true)
@@ -302,7 +303,7 @@ function Usuarios() {
     }
   }
 
-  if (loading) return <Loading />
+  if (loading) return <GlobalLoader text="Cargando usuarios..." />
 
   // Solo Director (id_rol=1) o Desarrollador (id_rol=4) puede acceder
   if (userRole !== null && userRole !== 1 && userRole !== 4) {
@@ -315,7 +316,7 @@ function Usuarios() {
           borderRadius: '12px',
           border: '2px solid #ef4444'
         }}>
-          <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>🔒</p>
+          <div style={{ margin: '0 0 1rem 0' }}><Lock className="w-12 h-12 text-red-400 mx-auto" /></div>
           <h3>Acceso Denegado</h3>
           <p>Solo el Director puede gestionar usuarios.</p>
         </div>
@@ -329,10 +330,10 @@ function Usuarios() {
         <h2 className="text-2xl font-bold">Gestión de Usuarios</h2>
         {!showForm && (
           <button
-            className="btn btn-primary"
+            className="btn btn-primary flex items-center gap-2"
             onClick={() => { setEditingUser(null); setShowForm(true) }}
           >
-            ➕ Nuevo Usuario
+            <Plus className="w-4 h-4" /> Nuevo Usuario
           </button>
         )}
       </div>
@@ -522,7 +523,7 @@ function Usuarios() {
                               onClick={() => openPasswordModal(user)}
                               title="Cambiar contraseña"
                             >
-                              🔑
+                              <KeyRound className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -530,10 +531,10 @@ function Usuarios() {
                         <div className="flex gap-2">
                           {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
                             <button
-                              className="btn btn-sm btn-primary"
+                              className="btn btn-sm btn-primary flex items-center gap-2"
                               onClick={() => handleEdit(user)}
                             >
-                              ✏️ Editar
+                              <Pencil className="w-4 h-4" /> Editar
                             </button>
                           )}
                           {canChangePassword(user) && (
@@ -542,15 +543,15 @@ function Usuarios() {
                               onClick={() => openPasswordModal(user)}
                               title="Cambiar contraseña"
                             >
-                              🔑
+                              <KeyRound className="w-4 h-4" />
                             </button>
                           )}
                           {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
                             <button
-                              className={`btn btn-sm ${user.is_active === false ? 'btn-success' : 'btn-danger'}`}
+                              className={`btn btn-sm flex items-center gap-2 ${user.is_active === false ? 'btn-success' : 'btn-danger'}`}
                               onClick={() => toggleActive(user)}
                             >
-                              {user.is_active === false ? '✅ Activar' : '🚫 Desactivar'}
+                              {user.is_active === false ? <><Check className="w-4 h-4" /> Activar</> : <><Ban className="w-4 h-4" /> Desactivar</>}
                             </button>
                           )}
                           {!canChangePassword(user) && (user.id_rol === 4 || (user.id_rol === 1 && userRole === 1)) && (
@@ -579,7 +580,7 @@ function Usuarios() {
         }}>
           <div className="card" style={{ width: '100%', maxWidth: '450px', margin: '1rem' }}>
             <h3 className="text-lg font-semibold mb-4">
-              🔑 Cambiar Contraseña
+              <span className="flex items-center gap-2"><KeyRound className="w-5 h-5" /> Cambiar Contraseña</span>
             </h3>
             <p className="text-sm text-secondary mb-4">
               Usuario: <strong>{passwordTarget.full_name}</strong> ({passwordTarget.username})

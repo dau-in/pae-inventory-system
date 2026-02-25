@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, notifyWarning, confirmAction } from '../utils/notifications'
+import { X, Plus, AlertTriangle, BarChart3, Check, Trash2, CheckCircle } from 'lucide-react'
 
 function MenuDiario() {
   const [loading, setLoading] = useState(true)
@@ -259,7 +260,7 @@ function MenuDiario() {
     setShowForm(false)
   }
 
-  if (loading && menus.length === 0) return <Loading />
+  if (loading && menus.length === 0) return <GlobalLoader text="Cargando menús..." />
 
   return (
     <div>
@@ -267,10 +268,10 @@ function MenuDiario() {
         <h2 className="text-2xl font-bold">Menú Diario</h2>
         {userRole !== 3 && (
           <button
-            className="btn btn-primary"
+            className="btn btn-primary flex items-center gap-2"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? '❌ Cancelar' : '➕ Nuevo Menú'}
+            {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nuevo Menú</>}
           </button>
         )}
       </div>
@@ -280,7 +281,7 @@ function MenuDiario() {
           <h3 className="text-lg font-semibold mb-4">Nuevo Menú del Día</h3>
           <form onSubmit={handleSubmit}>
             <div className="alert alert-warning mb-4">
-              ⚠️ <strong>Importante:</strong> Al confirmar el menú, se descontará automáticamente del inventario
+              <span className="inline-flex items-center gap-1"><AlertTriangle className="w-4 h-4" /> <strong>Importante:</strong></span> Al confirmar el menú, se descontará automáticamente del inventario
             </div>
 
             <div className="grid grid-2 gap-4">
@@ -320,7 +321,7 @@ function MenuDiario() {
 
             {selectedAsistencia && (
               <div className="alert alert-success mb-4">
-                📊 Calculando para <strong>{selectedAsistencia.total_alumnos} alumnos</strong>
+                <span className="inline-flex items-center gap-1"><BarChart3 className="w-4 h-4" /> Calculando para</span> <strong>{selectedAsistencia.total_alumnos} alumnos</strong>
               </div>
             )}
 
@@ -341,11 +342,11 @@ function MenuDiario() {
               <h4 className="font-semibold">Rubros del menú</h4>
               <button 
                 type="button" 
-                className="btn btn-sm btn-success" 
+                className="btn btn-sm btn-success flex items-center gap-2"
                 onClick={addDetalle}
                 disabled={!formData.id_asistencia}
               >
-                ➕ Agregar rubro
+                <Plus className="w-4 h-4" /> Agregar rubro
               </button>
             </div>
 
@@ -378,7 +379,7 @@ function MenuDiario() {
                           </select>
                           {porcion && (
                             <p className="text-sm text-success mt-1">
-                              ✓ 1 {porcion.unit_measure} = {porcion.porciones_por_unidad} porciones
+                              <Check className="w-3.5 h-3.5 inline" /> 1 {porcion.unit_measure} = {porcion.porciones_por_unidad} porciones
                             </p>
                           )}
                         </div>
@@ -413,10 +414,10 @@ function MenuDiario() {
 
                       <button 
                         type="button" 
-                        className="btn btn-danger btn-sm mt-2"
+                        className="btn btn-danger btn-sm mt-2 flex items-center gap-2"
                         onClick={() => removeDetalle(index)}
                       >
-                        🗑️ Eliminar
+                        <Trash2 className="w-4 h-4" /> Eliminar
                       </button>
                     </div>
                   )
@@ -425,8 +426,8 @@ function MenuDiario() {
             )}
 
             <div className="flex gap-2">
-              <button type="submit" className="btn btn-success" disabled={loading}>
-                {loading ? 'Guardando...' : '✅ Confirmar menú y descontar inventario'}
+              <button type="submit" className="btn btn-success flex items-center gap-2" disabled={loading}>
+                {loading ? 'Guardando...' : <><CheckCircle className="w-4 h-4" /> Confirmar menú y descontar inventario</>}
               </button>
               <button type="button" className="btn btn-secondary" onClick={resetForm}>
                 Cancelar

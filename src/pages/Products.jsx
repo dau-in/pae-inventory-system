@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getUserData } from '../supabaseClient'
 import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
+import { X, Plus, Pencil, Trash2 } from 'lucide-react'
 
 function Products() {
   const [loading, setLoading] = useState(true)
@@ -157,7 +158,7 @@ function Products() {
     return <span className="badge badge-success">OK</span>
   }
 
-  if (loading && products.length === 0) return <Loading />
+  if (loading && products.length === 0) return <GlobalLoader text="Cargando inventario..." />
 
   return (
     <div>
@@ -165,10 +166,10 @@ function Products() {
         <h2 className="text-2xl font-bold">Inventario de Rubros</h2>
         {userRole !== 3 && (
           <button
-            className="btn btn-primary"
+            className="btn btn-primary flex items-center gap-2"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? '❌ Cancelar' : '➕ Nuevo Rubro'}
+            {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nuevo Rubro</>}
           </button>
         )}
       </div>
@@ -281,16 +282,16 @@ function Products() {
                       <td>
                         <div className="flex gap-2">
                           <button
-                            className="btn btn-sm btn-primary"
+                            className="btn btn-sm btn-primary flex items-center gap-2"
                             onClick={() => handleEdit(product)}
                           >
-                            ✏️ Editar
+                            <Pencil className="w-4 h-4" /> Editar
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
                             onClick={() => handleDelete(product.id_product)}
                           >
-                            🗑️
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

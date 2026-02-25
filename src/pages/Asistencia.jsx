@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
+import { X, Plus, Pencil, Trash2 } from 'lucide-react'
 
 function Asistencia() {
   const [loading, setLoading] = useState(true)
@@ -122,7 +123,7 @@ function Asistencia() {
     setShowForm(false)
   }
 
-  if (loading && asistencias.length === 0) return <Loading />
+  if (loading && asistencias.length === 0) return <GlobalLoader text="Cargando asistencias..." />
 
   return (
     <div>
@@ -130,10 +131,10 @@ function Asistencia() {
         <h2 className="text-2xl font-bold">Asistencia Diaria</h2>
         {userRole !== 3 && (
           <button
-            className="btn btn-primary"
+            className="btn btn-primary flex items-center gap-2"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? '❌ Cancelar' : '➕ Nueva Asistencia'}
+            {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nueva Asistencia</>}
           </button>
         )}
       </div>
@@ -234,13 +235,13 @@ function Asistencia() {
                             className="btn btn-sm btn-primary"
                             onClick={() => handleEdit(asistencia)}
                           >
-                            ✏️
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
                             onClick={() => handleDelete(asistencia.id_asistencia)}
                           >
-                            🗑️
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

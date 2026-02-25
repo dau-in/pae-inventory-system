@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { signOut, getUserData, supabase } from '../supabaseClient'
+import { LayoutDashboard, Package, ClipboardList, CheckSquare, Utensils, Scale, BarChart3, Search, User, Code, Palette, LogOut, Menu, X } from 'lucide-react'
 import './Layout.css'
 
 function Layout() {
@@ -81,51 +82,51 @@ function Layout() {
             <img src="/logo.png" alt="PAE Logo" style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.375rem' }} />
             <h2 style={{ margin: 0 }}>PAE System</h2>
           </div>
-          <button className="close-menu" onClick={toggleMenu}>✕</button>
+          <button className="close-menu" onClick={toggleMenu}><X className="w-5 h-5" /></button>
         </div>
         
         <nav className="sidebar-nav">
           <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
-            📊 Dashboard
+            <LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard
           </NavLink>
           <NavLink to="/productos" className={({ isActive }) => isActive ? 'active' : ''}>
-            📦 Inventario
+            <Package className="w-5 h-5 mr-3" /> Inventario
           </NavLink>
           <NavLink to="/guias-entrada" className={({ isActive }) => isActive ? 'active' : ''}>
-            📋 Guías de Entrada
+            <ClipboardList className="w-5 h-5 mr-3" /> Guías de Entrada
           </NavLink>
           {/* Aprobar Guías: solo Director (id_rol=1) o Desarrollador (id_rol=4) */}
           {[1, 4].includes(userData?.id_rol) && (
             <NavLink to="/aprobar-guias" className={({ isActive }) => isActive ? 'active' : ''}>
-              ✅ Aprobar Guías
+              <CheckSquare className="w-5 h-5 mr-3" /> Aprobar Guías
             </NavLink>
           )}
           <NavLink to="/registro-diario" className={({ isActive }) => isActive ? 'active' : ''}>
-            🍴 Registro Diario
+            <Utensils className="w-5 h-5 mr-3" /> Registro Diario
           </NavLink>
           <NavLink to="/porciones" className={({ isActive }) => isActive ? 'active' : ''}>
-            ⚖️ Porciones
+            <Scale className="w-5 h-5 mr-3" /> Porciones
           </NavLink>
           <NavLink to="/reportes" className={({ isActive }) => isActive ? 'active' : ''}>
-            📈 Reportes
+            <BarChart3 className="w-5 h-5 mr-3" /> Reportes
           </NavLink>
           {/* Auditoría: solo Director (id_rol=1) o Desarrollador (id_rol=4) */}
           {[1, 4].includes(userData?.id_rol) && (
             <NavLink to="/auditoria" className={({ isActive }) => isActive ? 'active' : ''}>
-              🔍 Auditoría
+              <Search className="w-5 h-5 mr-3" /> Auditoría
             </NavLink>
           )}
           {/* Gestión de Usuarios: solo Director (id_rol=1) o Desarrollador (id_rol=4) */}
           {[1, 4].includes(userData?.id_rol) && (
             <NavLink to="/usuarios" className={({ isActive }) => isActive ? 'active' : ''}>
-              👤 Usuarios
+              <User className="w-5 h-5 mr-3" /> Usuarios
             </NavLink>
           )}
         </nav>
 
         <div className="sidebar-credits">
-          <span>⚙️ Desarrollado por: <a href="https://github.com/dau-in/pae-inventory-system" target="_blank" rel="noopener noreferrer">Darwin Aguirre</a></span><br/>
-          <span>🎨 Arte por: <a href="https://ghostyentity.carrd.co/" target="_blank" rel="noopener noreferrer">Isabella Martínez</a></span>
+          <span className="flex items-center gap-1"><Code className="w-3.5 h-3.5" /> Desarrollado por: <a href="https://github.com/dau-in/pae-inventory-system" target="_blank" rel="noopener noreferrer">Darwin Aguirre</a></span><br/>
+          <span className="flex items-center gap-1"><Palette className="w-3.5 h-3.5" /> Arte por: <a href="https://ghostyentity.carrd.co/" target="_blank" rel="noopener noreferrer">Isabella Martínez</a></span>
         </div>
 
         <div className="sidebar-footer">
@@ -135,8 +136,8 @@ function Layout() {
               <p className="text-sm text-secondary">{userData.rol?.rol_name}</p>
             </div>
           )}
-          <button onClick={handleLogout} className="btn btn-danger btn-sm" style={{ width: '100%' }}>
-            🚪 Cerrar Sesión
+          <button onClick={handleLogout} className="btn btn-danger btn-sm flex items-center justify-center gap-2" style={{ width: '100%' }}>
+            <LogOut className="w-4 h-4" /> Cerrar Sesión
           </button>
         </div>
       </aside>
@@ -145,7 +146,7 @@ function Layout() {
       <div className="main-content">
         {/* Mobile menu toggle */}
         <button className="menu-toggle" onClick={toggleMenu}>
-          ☰
+          <Menu className="w-6 h-6" />
         </button>
 
         {/* Page content */}

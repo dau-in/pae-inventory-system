@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getLocalDate, getFirstDayOfMonth } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifyError } from '../utils/notifications'
+import { Download } from 'lucide-react'
 
 function Reportes() {
   const [loading, setLoading] = useState(true)
@@ -226,14 +227,14 @@ function Reportes() {
           )}
         </div>
 
-        <button className="btn btn-primary mt-2" onClick={exportToCSV}>
-          📥 Exportar a CSV
+        <button className="btn btn-primary mt-2 flex items-center gap-2" onClick={exportToCSV}>
+          <Download className="w-4 h-4" /> Exportar a CSV
         </button>
       </div>
 
       <div className="card">
         {loading ? (
-          <Loading />
+          <GlobalLoader text="Generando reporte..." />
         ) : reportData.length === 0 ? (
           <div className="empty-state">
             <p>No hay datos para este reporte</p>

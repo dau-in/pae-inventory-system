@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase, getLocalDate } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
+import { Package, AlertTriangle, CalendarClock, Users } from 'lucide-react'
 
 function Dashboard() {
   const [loading, setLoading] = useState(true)
@@ -39,7 +40,7 @@ function Dashboard() {
         .from('asistencia_diaria')
         .select('total_alumnos')
         .eq('fecha', today)
-        .maybeSingle() // ✅ CAMBIO AQUÍ: maybeSingle() permite que no haya datos
+        .maybeSingle() // maybeSingle() permite que no haya datos
 
       // No lanzar error si no hay asistencia registrada
       if (attendanceError && attendanceError.code !== 'PGRST116') {
@@ -91,7 +92,7 @@ function Dashboard() {
     }
   }
 
-  if (loading) return <Loading />
+  if (loading) return <GlobalLoader text="Cargando dashboard..." />
 
   return (
     <div>
@@ -100,24 +101,24 @@ function Dashboard() {
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-2 mb-4">
         <div className="card">
-          <h3 className="text-lg font-semibold mb-2">📦 Total de Rubros</h3>
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><Package className="w-6 h-6 text-blue-600" /> Total de Rubros</h3>
           <p className="text-2xl font-heading font-bold text-blue-600">{stats.totalProducts}</p>
         </div>
 
         <div className="card">
-          <h3 className="text-lg font-semibold mb-2">⚠️ Stock Bajo</h3>
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><AlertTriangle className="w-6 h-6 text-amber-500" /> Stock Bajo</h3>
           <p className="text-2xl font-heading font-bold text-amber-500">{stats.lowStock}</p>
           <p className="text-sm text-secondary">Rubros con menos de 10 unidades</p>
         </div>
 
         <div className="card">
-          <h3 className="text-lg font-semibold mb-2">📅 Lotes por Vencer</h3>
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-red-500" /> Lotes por Vencer</h3>
           <p className="text-2xl font-heading font-bold text-red-500">{stats.expiringSoon}</p>
           <p className="text-sm text-secondary">Lotes que vencen en los próximos 30 días</p>
         </div>
 
         <div className="card">
-          <h3 className="text-lg font-semibold mb-2">👥 Asistencia Hoy</h3>
+          <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><Users className="w-6 h-6 text-emerald-500" /> Asistencia Hoy</h3>
           <p className="text-2xl font-heading font-bold text-emerald-500">{stats.todayAttendance}</p>
           <p className="text-sm text-secondary">
             {stats.todayAttendance === 0 ? 'Sin registro' : 'Alumnos presentes'}

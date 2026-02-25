@@ -1,7 +1,8 @@
 import { useState, useEffect, Fragment } from 'react'
 import { supabase, getUserData, getLocalDate } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError } from '../utils/notifications'
+import { X, Plus, Utensils, AlertTriangle, Check, Info, Loader2 } from 'lucide-react'
 
 function RegistroDiario() {
   const [loading, setLoading] = useState(true)
@@ -168,7 +169,7 @@ function RegistroDiario() {
     setShowForm(false)
   }
 
-  if (loading && registros.length === 0) return <Loading />
+  if (loading && registros.length === 0) return <GlobalLoader text="Cargando registros..." />
 
   return (
     <div>
@@ -179,10 +180,10 @@ function RegistroDiario() {
         </div>
         {userRole !== 3 && (
           <button
-            className="btn btn-primary"
+            className="btn btn-primary flex items-center gap-2"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? '❌ Cancelar' : '➕ Nueva Operación'}
+            {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nueva Operación</>}
           </button>
         )}
       </div>
@@ -275,8 +276,8 @@ function RegistroDiario() {
 
                     <div className="text-sm">
                       {calculo ? (
-                        <span style={{ color: calculo.suficiente ? '#059669' : '#dc2626' }}>
-                          {calculo.suficiente ? '✓' : '⚠️'} {calculo.cantidad} {calculo.unit} necesarios
+                        <span style={{ color: calculo.suficiente ? '#059669' : '#dc2626', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          {calculo.suficiente ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />} {calculo.cantidad} {calculo.unit} necesarios
                           {!calculo.suficiente && ` (stock: ${calculo.stock})`}
                         </span>
                       ) : (
@@ -291,7 +292,7 @@ function RegistroDiario() {
                       className="btn btn-sm btn-danger"
                       onClick={() => removeRubro(index)}
                     >
-                      ✕
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )
@@ -300,13 +301,13 @@ function RegistroDiario() {
 
             {/* Info box */}
             <div className="alert alert-warning mb-4">
-              ℹ️ La operación descontará automáticamente del inventario usando <strong>FIFO</strong> (primero los lotes más antiguos).
+              La operación descontará automáticamente del inventario usando <strong>FIFO</strong> (primero los lotes más antiguos).
               Cada rubro seleccionado consumirá: asistencia / rendimiento por unidad.
             </div>
 
             <div className="flex gap-2">
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? 'Procesando...' : '🍳 Registrar Operación'}
+              <button type="submit" className="btn btn-primary flex items-center gap-2" disabled={submitting}>
+                {submitting ? 'Procesando...' : <><Utensils className="w-4 h-4" /> Registrar Operación</>}
               </button>
               <button type="button" className="btn btn-secondary" onClick={resetForm}>
                 Cancelar
@@ -365,7 +366,7 @@ function RegistroDiario() {
                       <tr>
                         <td colSpan="6" style={{ padding: '0.5rem 1rem', background: '#f8fafc' }}>
                           {!detallesRegistro[registro.id_registro] ? (
-                            <p className="text-sm text-secondary">Cargando...</p>
+                            <p className="text-sm text-secondary flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando detalles...</p>
                           ) : detallesRegistro[registro.id_registro].length === 0 ? (
                             <p className="text-sm text-secondary">Sin detalles de rubros</p>
                           ) : (

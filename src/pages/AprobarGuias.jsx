@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, notifyWarning, notifyInfo } from '../utils/notifications'
+import { Lock, CheckSquare, CheckCircle, Calendar, User, FileText, Package, Lightbulb, XCircle, Clock } from 'lucide-react'
 
 function AprobarGuias() {
   const [loading, setLoading] = useState(true)
@@ -146,7 +147,7 @@ function AprobarGuias() {
     }
   }
 
-  if (loading && guiasPendientes.length === 0) return <Loading />
+  if (loading && guiasPendientes.length === 0) return <GlobalLoader text="Cargando guías pendientes..." />
 
   // Verificar permisos - solo Director o Desarrollador
   if (userRole !== null && userRole !== 1 && userRole !== 4) {
@@ -159,7 +160,7 @@ function AprobarGuias() {
           borderRadius: '12px',
           border: '2px solid #ef4444'
         }}>
-          <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>🔒</p>
+          <div style={{ margin: '0 0 1rem 0' }}><Lock className="w-12 h-12 text-red-400 mx-auto" /></div>
           <h3>Acceso Denegado</h3>
           <p>Solo el Director puede aprobar guías.</p>
         </div>
@@ -170,7 +171,7 @@ function AprobarGuias() {
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h2>✅ Aprobar Guías de Entrada</h2>
+        <h2 className="flex items-center gap-2"><CheckSquare className="w-6 h-6" /> Aprobar Guías de Entrada</h2>
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.5rem' }}>
           Revise y apruebe las guías pendientes. El inventario se actualizará automáticamente al aprobar.
         </p>
@@ -183,7 +184,7 @@ function AprobarGuias() {
           background: '#f8fafc',
           borderRadius: '12px'
         }}>
-          <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>✅</p>
+          <div style={{ margin: '0 0 1rem 0' }}><CheckCircle className="w-12 h-12 text-emerald-400 mx-auto" /></div>
           <h3>No hay guías pendientes</h3>
           <p style={{ color: '#64748b' }}>
             Todas las guías han sido revisadas.
@@ -215,14 +216,17 @@ function AprobarGuias() {
                       color: '#92400e',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
                     }}>
-                      ⏳ PENDIENTE
+                      <Clock className="w-4 h-4" /> PENDIENTE
                     </span>
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                    📅 Fecha: {new Date(guia.fecha).toLocaleDateString('es-VE')} |
-                    👤 Creado por: <strong>{guia.creador?.full_name || 'Desconocido'}</strong>
+                    <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> Fecha:</span> {new Date(guia.fecha).toLocaleDateString('es-VE')} |
+                    <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Creado por:</span> <strong>{guia.creador?.full_name || 'Desconocido'}</strong>
                   </div>
                   {guia.numero_guia_sisecal && (
                     <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
@@ -263,7 +267,7 @@ function AprobarGuias() {
                   marginBottom: '1.5rem',
                   fontSize: '0.9rem'
                 }}>
-                  <strong>📝 Observaciones:</strong><br/>
+                  <strong className="inline-flex items-center gap-1"><FileText className="w-4 h-4" /> Observaciones:</strong><br/>
                   {guia.notas}
                 </div>
               )}
@@ -271,7 +275,7 @@ function AprobarGuias() {
               {/* Productos */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h4 style={{ marginBottom: '1rem' }}>
-                  📦 Rubros a Ingresar ({guia.input?.length || 0})
+                  <span className="inline-flex items-center gap-1"><Package className="w-5 h-5" /> Rubros a Ingresar</span> ({guia.input?.length || 0})
                 </h4>
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                   {guia.input?.map(item => (
@@ -319,7 +323,7 @@ function AprobarGuias() {
                           border: '1px dashed #3b82f6'
                         }}>
                           <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: '#3b82f6' }}>
-                            📦 Lotes registrados:
+                            <span className="inline-flex items-center gap-1"><Package className="w-4 h-4" /> Lotes registrados:</span>
                           </div>
                           {item.lotes_detalle.map((lote, idx) => (
                             <div 
@@ -350,7 +354,7 @@ function AprobarGuias() {
                         fontSize: '0.85rem',
                         color: '#065f46'
                       }}>
-                        💡 Después de aprobar: <strong>{(parseFloat(item.product?.stock || 0) + parseFloat(item.amount)).toFixed(2)} {item.product?.unit_measure}</strong>
+                        <span className="inline-flex items-center gap-1"><Lightbulb className="w-4 h-4" /> Después de aprobar:</span> <strong>{(parseFloat(item.product?.stock || 0) + parseFloat(item.amount)).toFixed(2)} {item.product?.unit_measure}</strong>
                       </div>
                     </div>
                   ))}
@@ -370,10 +374,13 @@ function AprobarGuias() {
                     borderRadius: '8px',
                     cursor: loading ? 'not-allowed' : 'pointer',
                     fontWeight: '600',
-                    fontSize: '1rem'
+                    fontSize: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
                   }}
                 >
-                  ❌ Rechazar
+                  <XCircle className="w-4 h-4" /> Rechazar
                 </button>
                 <button
                   onClick={() => abrirModal(guia, 'aprobar')}
@@ -387,10 +394,13 @@ function AprobarGuias() {
                     cursor: loading ? 'not-allowed' : 'pointer',
                     fontWeight: '600',
                     fontSize: '1rem',
-                    boxShadow: '0 4px 6px rgba(16, 185, 129, 0.3)'
+                    boxShadow: '0 4px 6px rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
                   }}
                 >
-                  ✅ Aprobar y Actualizar Inventario
+                  <CheckCircle className="w-4 h-4" /> Aprobar y Actualizar Inventario
                 </button>
               </div>
             </div>
@@ -421,10 +431,10 @@ function AprobarGuias() {
             boxShadow: '0 20px 25px rgba(0,0,0,0.3)'
           }}>
             <h3 style={{ marginBottom: '1rem' }}>
-              {accion === 'aprobar' ? '✅ Confirmar Aprobación' : '❌ Confirmar Rechazo'}
+              {accion === 'aprobar' ? <span className="flex items-center gap-2"><CheckCircle className="w-5 h-5" /> Confirmar Aprobación</span> : <span className="flex items-center gap-2"><XCircle className="w-5 h-5" /> Confirmar Rechazo</span>}
             </h3>
 
-            {/* ✅ CORRECCIÓN: <ul> fuera de <p> */}
+            {/* CORRECCIÓN: <ul> fuera de <p> */}
             <div style={{ marginBottom: '1.5rem', color: '#64748b' }}>
               {accion === 'aprobar' ? (
                 <>

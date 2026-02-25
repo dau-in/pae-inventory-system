@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getUserData } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
+import { X, Plus, Lightbulb, Pencil, Trash2 } from 'lucide-react'
 
 function Porciones() {
   const [loading, setLoading] = useState(true)
@@ -167,7 +168,7 @@ function Porciones() {
     setShowForm(false)
   }
 
-  if (loading && porciones.length === 0) return <Loading />
+  if (loading && porciones.length === 0) return <GlobalLoader text="Cargando porciones..." />
 
   // Productos que ya tienen porción configurada
   const productsWithPortion = porciones.map(p => p.id_product)
@@ -181,17 +182,17 @@ function Porciones() {
           <p className="text-secondary">Define cuántas porciones da cada unidad de rubro</p>
         </div>
         <button
-          className="btn btn-primary"
+          className="btn btn-primary flex items-center gap-2"
           onClick={() => setShowForm(!showForm)}
           style={{ display: userRole === 3 ? 'none' : undefined }}
         >
-          {showForm ? '❌ Cancelar' : '➕ Nueva Porción'}
+          {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nueva Porción</>}
         </button>
       </div>
 
       {/* Info box */}
       <div className="alert alert-warning mb-4">
-        💡 <strong>¿Cómo configurar las porciones?</strong><br/>
+        <span className="inline-flex items-center gap-1"><Lightbulb className="w-4 h-4" /> <strong>¿Cómo configurar las porciones?</strong></span><br/>
         Aquí le enseñas al sistema para cuántos niños alcanza 1 kilo, 1 litro o 1 unidad de cada rubro.
         Al registrar el menú diario, el sistema usará este número para descontar automáticamente
         la cantidad exacta del inventario.
@@ -333,13 +334,13 @@ function Porciones() {
                               className="btn btn-sm btn-primary"
                               onClick={() => handleEdit(porcion)}
                             >
-                              ✏️
+                              <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               className="btn btn-sm btn-danger"
                               onClick={() => handleDelete(porcion.id_porcion)}
                             >
-                              🗑️
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

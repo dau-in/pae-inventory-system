@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser, getUserData, getLocalDate } from '../supabaseClient'
-import Loading from '../components/Loading'
+import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, notifyWarning } from '../utils/notifications'
+import { ClipboardList, X, Plus, Package, Trash2, AlertTriangle, Save, Filter, Calendar, User, CheckCircle, XCircle, Clock, Info } from 'lucide-react'
 import './GuiasEntrada.css'
 
 function GuiasEntrada() {
@@ -251,13 +252,16 @@ function GuiasEntrada() {
 
   const getEstadoBadge = (estado) => {
     const styles = {
-      'Pendiente': { bg: '#fef3c7', color: '#92400e', icon: '⏳' },
-      'Aprobada': { bg: '#d1fae5', color: '#065f46', icon: '✅' },
-      'Rechazada': { bg: '#fee2e2', color: '#991b1b', icon: '❌' }
+      'Pendiente': { bg: '#fef3c7', color: '#92400e' },
+      'Aprobada': { bg: '#d1fae5', color: '#065f46' },
+      'Rechazada': { bg: '#fee2e2', color: '#991b1b' }
     }
-
+    const icons = {
+      'Pendiente': <Clock className="w-4 h-4" />,
+      'Aprobada': <CheckCircle className="w-4 h-4" />,
+      'Rechazada': <XCircle className="w-4 h-4" />
+    }
     const style = styles[estado] || styles['Pendiente']
-
     return (
       <span style={{
         padding: '0.5rem 1rem',
@@ -265,20 +269,23 @@ function GuiasEntrada() {
         color: style.color,
         borderRadius: '6px',
         fontSize: '0.85rem',
-        fontWeight: '600'
+        fontWeight: '600',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.25rem'
       }}>
-        {style.icon} {estado}
+        {icons[estado] || icons['Pendiente']} {estado}
       </span>
     )
   }
 
-  if (loading) return <Loading />
+  if (loading) return <GlobalLoader text="Cargando guías..." />
 
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2>📋 Guías de Entrada CNAE</h2>
+          <h2 className="flex items-center gap-2"><ClipboardList className="w-6 h-6" /> Guías de Entrada CNAE</h2>
           <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.5rem' }}>
             Sistema de aprobación: Las guías quedan pendientes hasta que el Director las apruebe
           </p>
@@ -293,10 +300,13 @@ function GuiasEntrada() {
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
-              fontWeight: '600'
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}
           >
-            {showForm ? '❌ Cancelar' : '+ Nueva Guía'}
+            {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nueva Guía</>}
           </button>
         )}
       </div>
@@ -312,7 +322,7 @@ function GuiasEntrada() {
             marginBottom: '1.5rem'
           }}>
             <p style={{ margin: 0, fontSize: '0.9rem', color: '#9a3412' }}>
-              ℹ️ <strong>Importante:</strong> Esta guía quedará en estado <strong>PENDIENTE</strong> hasta que el Director la apruebe.
+              <Info className="w-4 h-4 inline" /> <strong>Importante:</strong> Esta guía quedará en estado <strong>PENDIENTE</strong> hasta que el Director la apruebe.
               El inventario NO se actualizará automáticamente.
             </p>
           </div>
@@ -582,7 +592,7 @@ function GuiasEntrada() {
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <h6 style={{ color: '#3b82f6', margin: 0 }}>
-                        📦 Lotes / Vencimientos
+                        <span className="flex items-center gap-1"><Package className="w-4 h-4" /> Lotes / Vencimientos</span>
                       </h6>
                       <button
                         type="button"
@@ -670,7 +680,7 @@ function GuiasEntrada() {
                                 cursor: 'pointer'
                               }}
                             >
-                              🗑️
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -690,7 +700,7 @@ function GuiasEntrada() {
                       {' | '}
                       Total: {detalle.amount || 0}
                       {Math.abs((detalle.lotes.reduce((s, l) => s + (parseFloat(l.cantidad) || 0), 0)) - (parseFloat(detalle.amount) || 0)) > 0.01 && (
-                        <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>⚠️ No coinciden</span>
+                        <span style={{ color: '#ef4444', marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><AlertTriangle className="w-4 h-4" /> No coinciden</span>
                       )}
                     </div>
                   </div>
@@ -725,10 +735,13 @@ function GuiasEntrada() {
                   border: 'none',
                   borderRadius: '8px',
                   cursor: loading ? 'not-allowed' : 'pointer',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
                 }}
               >
-                {loading ? 'Guardando...' : '💾 Registrar Guía (Pendiente)'}
+                {loading ? 'Guardando...' : <><Save className="w-4 h-4" /> Registrar Guía (Pendiente)</>}
               </button>
             </div>
           </form>
@@ -744,7 +757,7 @@ function GuiasEntrada() {
         marginBottom: '1.5rem',
         border: '1px solid #e2e8f0'
       }}>
-        <h4 style={{ marginBottom: '1rem' }}>🔍 Filtros</h4>
+        <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Filter className="w-5 h-5" /> Filtros</h4>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: '500' }}>
@@ -823,7 +836,7 @@ function GuiasEntrada() {
             background: '#f8fafc',
             borderRadius: '12px'
           }}>
-            <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>📋</p>
+            <div style={{ margin: '0 0 1rem 0' }}><ClipboardList className="w-12 h-12 text-slate-400 mx-auto" /></div>
             <p>No hay guías en el rango seleccionado.</p>
           </div>
         ) : (
@@ -846,8 +859,8 @@ function GuiasEntrada() {
                       {guia.numero_guia_sisecal && ` | SISECAL ${guia.numero_guia_sisecal}`}
                     </h4>
                     <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                      📅 {new Date(guia.fecha).toLocaleDateString('es-VE')} |
-                      👤 Recibió: {guia.vocera_nombre}
+                      <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(guia.fecha).toLocaleDateString('es-VE')}</span> |
+                      <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Recibió:</span> {guia.vocera_nombre}
                     </div>
                   </div>
                   {getEstadoBadge(guia.estado)}
@@ -861,7 +874,7 @@ function GuiasEntrada() {
                     fontSize: '0.9rem',
                     marginBottom: '1rem'
                   }}>
-                    ✅ Aprobado por: <strong>{guia.aprobador.full_name}</strong> el{' '}
+                    <span className="inline-flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Aprobado por:</span> <strong>{guia.aprobador.full_name}</strong> el{' '}
                     {new Date(guia.fecha_aprobacion).toLocaleDateString('es-VE')}
                   </div>
                 )}
@@ -874,7 +887,7 @@ function GuiasEntrada() {
                     fontSize: '0.9rem',
                     marginBottom: '1rem'
                   }}>
-                    ❌ Rechazado por: <strong>{guia.aprobador.full_name}</strong><br/>
+                    <span className="inline-flex items-center gap-1"><XCircle className="w-4 h-4" /> Rechazado por:</span> <strong>{guia.aprobador.full_name}</strong><br/>
                     Motivo: {guia.comentarios_aprobacion}
                   </div>
                 )}
@@ -903,7 +916,7 @@ function GuiasEntrada() {
                       </div>
                       {item.lotes_detalle && item.lotes_detalle.length > 0 && (
                         <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
-                          📦 {item.lotes_detalle.length} lote(s) — Vence: {item.lotes_detalle.map(l =>
+                          <span className="inline-flex items-center gap-1"><Package className="w-3.5 h-3.5" /> {item.lotes_detalle.length} lote(s)</span> — Vence: {item.lotes_detalle.map(l =>
                             new Date(l.fecha_vencimiento).toLocaleDateString('es-VE')
                           ).join(', ')}
                         </div>

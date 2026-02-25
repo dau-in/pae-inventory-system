@@ -17,7 +17,7 @@ import Usuarios from './pages/Usuarios'
 // Importar componentes
 import Layout from './components/Layout'
 import PrivateRoute from './components/PrivateRoute'
-import Loading from './components/Loading'
+import GlobalLoader from './components/GlobalLoader'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -41,7 +41,7 @@ function App() {
   }, [])
 
   if (loading) {
-    return <Loading />
+    return <GlobalLoader text="Iniciando sesión..." />
   }
 
   return (
