@@ -13,6 +13,7 @@ import Reportes from './pages/Reportes'
 import AuditLog from './pages/AuditLog'
 import AprobarGuias from './pages/AprobarGuias'
 import Usuarios from './pages/Usuarios'
+import DatosPlantel from './pages/DatosPlantel'
 
 // Importar componentes
 import Layout from './components/Layout'
@@ -65,6 +66,7 @@ function App() {
             <Route path="/auditoria" element={<AuditLog />} />
             <Route path="/aprobar-guias" element={<AprobarGuias />} />
             <Route path="/usuarios" element={<Usuarios />} />
+            <Route path="/datos-plantel" element={<DatosPlantel />} />
           </Route>
         </Route>
 
