@@ -28,3 +28,4 @@ tmpclaude-*
 .agents/
 .claude/
 skills-lock.json
+AI_CONTEXT.md

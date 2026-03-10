@@ -10,6 +10,7 @@ function Products() {
   const [categories, setCategories] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [categoryError, setCategoryError] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     product_name: '',
@@ -62,6 +63,7 @@ function Products() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (name === 'id_category') setCategoryError(false)
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -70,6 +72,13 @@ function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!formData.id_category) {
+      setCategoryError(true)
+      notifyError('Campo requerido', 'Debe seleccionar una categoría')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -149,6 +158,7 @@ function Products() {
       id_category: ''
     })
     setEditingProduct(null)
+    setCategoryError(false)
     setShowForm(false)
   }
 
@@ -208,11 +218,13 @@ function Products() {
               </div>
 
               <div className="form-group">
-                <label>Categoría</label>
+                <label>Categoría *</label>
                 <select
                   name="id_category"
                   value={formData.id_category}
                   onChange={handleInputChange}
+                  required
+                  className={categoryError ? 'border-red-500 ring-2 ring-red-200' : ''}
                 >
                   <option value="">Seleccionar...</option>
                   {categories.map(cat => (
@@ -221,6 +233,9 @@ function Products() {
                     </option>
                   ))}
                 </select>
+                {categoryError && (
+                  <p className="text-red-500 text-xs mt-1">Debe seleccionar una categoría</p>
+                )}
               </div>
             </div>
 

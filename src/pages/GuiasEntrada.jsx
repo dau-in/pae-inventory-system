@@ -16,7 +16,8 @@ function GuiasEntrada() {
     numero_guia_sisecal: '',
     fecha: getLocalDate(),
     vocera_nombre: '',
-    telefono_vocera: '',
+    telefono_operadora: '0414',
+    telefono_numero: '',
     notas: ''
   })
   const [detalles, setDetalles] = useState([])
@@ -96,6 +97,13 @@ function GuiasEntrada() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    const numericFields = ['numero_guia_sunagro', 'numero_guia_sisecal', 'telefono_numero']
+    if (numericFields.includes(name)) {
+      const filtered = value.replace(/[^0-9]/g, '')
+      if (name === 'telefono_numero' && filtered.length > 7) return
+      setFormData(prev => ({ ...prev, [name]: filtered }))
+      return
+    }
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -155,6 +163,11 @@ function GuiasEntrada() {
       return
     }
 
+    if (formData.telefono_numero.length !== 7) {
+      notifyWarning('Teléfono incompleto', 'El número de teléfono debe tener exactamente 7 dígitos')
+      return
+    }
+
     // Validar lotes (siempre obligatorios)
     for (let i = 0; i < detalles.length; i++) {
       const detalle = detalles[i]
@@ -189,7 +202,7 @@ function GuiasEntrada() {
           numero_guia_sisecal: formData.numero_guia_sisecal || null,
           fecha: formData.fecha,
           vocera_nombre: formData.vocera_nombre,
-          telefono_vocera: formData.telefono_vocera || null,
+          telefono_vocera: formData.telefono_operadora + formData.telefono_numero,
           notas: formData.notas || null,
           created_by: user.id,
           estado: 'Pendiente'
@@ -243,7 +256,8 @@ function GuiasEntrada() {
       numero_guia_sisecal: '',
       fecha: getLocalDate(),
       vocera_nombre: '',
-      telefono_vocera: '',
+      telefono_operadora: '0414',
+      telefono_numero: '',
       notas: ''
     })
     setDetalles([])
@@ -340,6 +354,8 @@ function GuiasEntrada() {
                   value={formData.numero_guia_sunagro}
                   onChange={handleInputChange}
                   required
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="Ej: 91"
                   style={{
                     width: '100%',
@@ -360,6 +376,8 @@ function GuiasEntrada() {
                   name="numero_guia_sisecal"
                   value={formData.numero_guia_sisecal}
                   onChange={handleInputChange}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="Opcional"
                   style={{
                     width: '100%',
@@ -411,21 +429,52 @@ function GuiasEntrada() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                  Teléfono de Contacto
+                  Teléfono de Contacto* <span style={{ color: '#ef4444' }}>●</span>
                 </label>
-                <input
-                  type="tel"
-                  name="telefono_vocera"
-                  value={formData.telefono_vocera}
-                  onChange={handleInputChange}
-                  placeholder="0412-XXX-XXXX"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px'
-                  }}
-                />
+                <div style={{ display: 'flex', gap: '0' }}>
+                  <select
+                    name="telefono_operadora"
+                    value={formData.telefono_operadora}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      padding: '0.75rem',
+                      border: '2px solid #ddd',
+                      borderRight: 'none',
+                      borderRadius: '8px 0 0 8px',
+                      background: '#f8fafc',
+                      fontSize: '0.95rem',
+                      fontWeight: '600',
+                      minWidth: '90px'
+                    }}
+                  >
+                    <option value="0414">0414</option>
+                    <option value="0424">0424</option>
+                    <option value="0412">0412</option>
+                    <option value="0416">0416</option>
+                    <option value="0426">0426</option>
+                    <option value="0212">0212</option>
+                  </select>
+                  <input
+                    type="text"
+                    name="telefono_numero"
+                    value={formData.telefono_numero}
+                    onChange={handleInputChange}
+                    required
+                    inputMode="numeric"
+                    pattern="[0-9]{7}"
+                    maxLength={7}
+                    placeholder="1234567"
+                    style={{
+                      flex: 1,
+                      padding: '0.75rem',
+                      border: '2px solid #ddd',
+                      borderRadius: '0 8px 8px 0',
+                      fontSize: '1rem',
+                      letterSpacing: '0.05em'
+                    }}
+                  />
+                </div>
               </div>
             </div>
 

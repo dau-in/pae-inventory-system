@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { signOut, getUserData, supabase } from '../supabaseClient'
-import { LayoutDashboard, Package, ClipboardList, CheckSquare, Utensils, Scale, BarChart3, Search, User, Code, Palette, LogOut, Menu, X, Building2 } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, CheckSquare, Utensils, Scale, BarChart3, Search, User, Github, LogOut, Menu, X, Building2 } from 'lucide-react'
 import './Layout.css'
 
 function Layout() {
@@ -128,8 +128,9 @@ function Layout() {
         </nav>
 
         <div className="sidebar-credits">
-          <span className="flex items-center gap-1"><Code className="w-3.5 h-3.5" /> Desarrollado por: <a href="https://github.com/dau-in/pae-inventory-system" target="_blank" rel="noopener noreferrer">Darwin Aguirre</a></span><br/>
-          <span className="flex items-center gap-1"><Palette className="w-3.5 h-3.5" /> Arte por: <a href="https://ghostyentity.carrd.co/" target="_blank" rel="noopener noreferrer">Isabella Martínez</a></span>
+          <a href="https://github.com/dau-in/pae-inventory-system" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors text-xs">
+            <Github className="w-4 h-4" /> Código Fuente
+          </a>
         </div>
 
         <div className="sidebar-footer">
