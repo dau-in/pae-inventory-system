@@ -79,6 +79,18 @@ function Products() {
       return
     }
 
+    // Validar duplicidad de nombre de rubro
+    if (!editingProduct) {
+      const nombreNormalizado = formData.product_name.trim().toLowerCase()
+      const duplicado = products.find(
+        p => p.product_name.trim().toLowerCase() === nombreNormalizado
+      )
+      if (duplicado) {
+        notifyError('Rubro duplicado', 'Ya existe un rubro con este nombre. Por favor, especifique la marca o detalle (ej. Arroz Mary)')
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
@@ -163,10 +175,14 @@ function Products() {
   }
 
   const getStockBadge = (stock) => {
-    if (stock < 10) return <span className="badge badge-danger">BAJO</span>
-    if (stock < 50) return <span className="badge badge-warning">MEDIO</span>
-    return <span className="badge badge-success">OK</span>
+    const base = 'px-2 py-0.5 text-xs font-medium rounded-full'
+    if (stock === 0) return <span className={`${base} bg-red-100 text-red-800`}>AGOTADO</span>
+    if (stock <= 10) return <span className={`${base} bg-red-50 text-red-600`}>BAJO</span>
+    if (stock < 50) return <span className={`${base} bg-yellow-50 text-yellow-700`}>MEDIO</span>
+    return <span className={`${base} bg-green-50 text-green-700`}>SUFICIENTE</span>
   }
+
+  const sortedProducts = [...products].sort((a, b) => (b.stock ?? 0) - (a.stock ?? 0))
 
   if (loading && products.length === 0) return <GlobalLoader text="Cargando inventario..." />
 
@@ -193,7 +209,7 @@ function Products() {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-2 gap-4">
               <div className="form-group">
-                <label>Nombre del rubro *</label>
+                <label>Nombre del rubro <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="text"
                   name="product_name"
@@ -204,7 +220,7 @@ function Products() {
               </div>
 
               <div className="form-group">
-                <label>Unidad de medida *</label>
+                <label>Unidad de medida <span className="text-red-500 ml-1">●</span></label>
                 <select
                   name="unit_measure"
                   value={formData.unit_measure}
@@ -218,7 +234,7 @@ function Products() {
               </div>
 
               <div className="form-group">
-                <label>Categoría *</label>
+                <label>Categoría <span className="text-red-500 ml-1">●</span></label>
                 <select
                   name="id_category"
                   value={formData.id_category}
@@ -284,13 +300,15 @@ function Products() {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {sortedProducts.map((product) => (
                   <tr key={product.id_product}>
                     <td>{product.id_product}</td>
                     <td className="font-semibold">{product.product_name}</td>
                     <td>{product.category?.category_name || '-'}</td>
                     <td>
-                      {product.stock} {getStockBadge(product.stock)}
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        {product.stock} {getStockBadge(product.stock)}
+                      </div>
                     </td>
                     <td>{product.unit_measure}</td>
                     {userRole !== 3 && (

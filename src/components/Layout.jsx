@@ -86,42 +86,42 @@ function Layout() {
         </div>
         
         <nav className="sidebar-nav">
-          <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard
           </NavLink>
-          <NavLink to="/productos" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/productos" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Package className="w-5 h-5 mr-3" /> Inventario
           </NavLink>
-          <NavLink to="/guias-entrada" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/guias-entrada" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <ClipboardList className="w-5 h-5 mr-3" /> Guías de Entrada
           </NavLink>
           {/* Aprobar Guías: solo Director (id_rol=1) o Desarrollador (id_rol=4) */}
           {[1, 4].includes(userData?.id_rol) && (
-            <NavLink to="/aprobar-guias" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/aprobar-guias" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
               <CheckSquare className="w-5 h-5 mr-3" /> Aprobar Guías
             </NavLink>
           )}
-          <NavLink to="/registro-diario" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/registro-diario" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Utensils className="w-5 h-5 mr-3" /> Registro Diario
           </NavLink>
-          <NavLink to="/porciones" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/porciones" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Scale className="w-5 h-5 mr-3" /> Porciones
           </NavLink>
-          <NavLink to="/reportes" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/reportes" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <BarChart3 className="w-5 h-5 mr-3" /> Reportes
           </NavLink>
-          <NavLink to="/datos-plantel" className={({ isActive }) => isActive ? 'active' : ''}>
+          <NavLink to="/datos-plantel" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Building2 className="w-5 h-5 mr-3" /> Datos del Plantel
           </NavLink>
           {/* Auditoría: solo Director (id_rol=1) o Desarrollador (id_rol=4) */}
           {[1, 4].includes(userData?.id_rol) && (
-            <NavLink to="/auditoria" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/auditoria" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
               <Search className="w-5 h-5 mr-3" /> Auditoría
             </NavLink>
           )}
           {/* Gestión de Usuarios: solo Director (id_rol=1) o Desarrollador (id_rol=4) */}
           {[1, 4].includes(userData?.id_rol) && (
-            <NavLink to="/usuarios" className={({ isActive }) => isActive ? 'active' : ''}>
+            <NavLink to="/usuarios" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
               <User className="w-5 h-5 mr-3" /> Usuarios
             </NavLink>
           )}

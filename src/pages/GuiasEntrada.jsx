@@ -346,7 +346,7 @@ function GuiasEntrada() {
             <div className="guia-form-grid">
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                  Nº Guía SUNAGRO* <span style={{ color: '#ef4444' }}>●</span>
+                  Nº Guía SUNAGRO <span className="text-red-500 ml-1">●</span>
                 </label>
                 <input
                   type="text"
@@ -390,7 +390,7 @@ function GuiasEntrada() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                  Fecha de Entrega* <span style={{ color: '#ef4444' }}>●</span>
+                  Fecha de Entrega <span className="text-red-500 ml-1">●</span>
                 </label>
                 <input
                   type="date"
@@ -409,7 +409,7 @@ function GuiasEntrada() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                  Vocera que Recibió* <span style={{ color: '#ef4444' }}>●</span>
+                  Vocera que Recibió <span className="text-red-500 ml-1">●</span>
                 </label>
                 <input
                   type="text"
@@ -429,7 +429,7 @@ function GuiasEntrada() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                  Teléfono de Contacto* <span style={{ color: '#ef4444' }}>●</span>
+                  Teléfono de Contacto <span className="text-red-500 ml-1">●</span>
                 </label>
                 <div style={{ display: 'flex', gap: '0' }}>
                   <select
@@ -564,7 +564,7 @@ function GuiasEntrada() {
                   <div className="rubro-fields-grid">
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                        Rubro*
+                        Rubro <span className="text-red-500 ml-1">●</span>
                       </label>
                       <select
                         value={detalle.id_product}
@@ -592,7 +592,7 @@ function GuiasEntrada() {
 
                     <div>
                       <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                        Cantidad Total*
+                        Cantidad Total <span className="text-red-500 ml-1">●</span>
                       </label>
                       <input
                         type="number"
@@ -677,7 +677,7 @@ function GuiasEntrada() {
                       >
                         <div>
                           <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
-                            Cantidad Lote {loteIndex + 1}*
+                            Cantidad Lote {loteIndex + 1} <span className="text-red-500 ml-1">●</span>
                           </label>
                           <input
                             type="number"
@@ -696,7 +696,7 @@ function GuiasEntrada() {
 
                         <div>
                           <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
-                            Vencimiento / Vida Útil*
+                            Vencimiento / Vida Útil <span className="text-red-500 ml-1">●</span>
                           </label>
                           <input
                             type="date"
@@ -807,7 +807,7 @@ function GuiasEntrada() {
         border: '1px solid #e2e8f0'
       }}>
         <h4 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Filter className="w-5 h-5" /> Filtros</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: '500' }}>
               Nº Guía SUNAGRO
@@ -859,6 +859,7 @@ function GuiasEntrada() {
           </div>
           <button
             onClick={handleBuscar}
+            className="w-full md:w-auto"
             style={{
               padding: '0.6rem 1.5rem',
               background: '#FFD9A8',
@@ -907,9 +908,10 @@ function GuiasEntrada() {
                       Guía SUNAGRO #{guia.numero_guia_sunagro}
                       {guia.numero_guia_sisecal && ` | SISECAL ${guia.numero_guia_sisecal}`}
                     </h4>
-                    <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                      <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(guia.fecha).toLocaleDateString('es-VE')}</span> |
-                      <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Recibió:</span> {guia.vocera_nombre}
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1" style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                      <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(guia.fecha).toLocaleDateString('es-VE')}</span>
+                      <span>|</span>
+                      <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Recibió: {guia.vocera_nombre}</span>
                     </div>
                   </div>
                   {getEstadoBadge(guia.estado)}

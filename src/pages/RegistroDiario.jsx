@@ -197,7 +197,7 @@ function RegistroDiario() {
             {/* Fecha / Turno / Asistencia */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
               <div className="form-group">
-                <label>Fecha *</label>
+                <label>Fecha <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="date"
                   value={formData.fecha}
@@ -207,7 +207,7 @@ function RegistroDiario() {
               </div>
 
               <div className="form-group">
-                <label>Turno *</label>
+                <label>Turno <span className="text-red-500 ml-1">●</span></label>
                 <select
                   value={formData.turno}
                   onChange={(e) => setFormData(prev => ({ ...prev, turno: e.target.value }))}
@@ -220,7 +220,7 @@ function RegistroDiario() {
               </div>
 
               <div className="form-group">
-                <label>Asistencia (alumnos) *</label>
+                <label>Asistencia (alumnos) <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="number"
                   min="1"

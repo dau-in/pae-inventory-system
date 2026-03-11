@@ -286,7 +286,7 @@ function MenuDiario() {
 
             <div className="grid grid-2 gap-4">
               <div className="form-group">
-                <label>Fecha *</label>
+                <label>Fecha <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="date"
                   name="fecha"
@@ -297,7 +297,7 @@ function MenuDiario() {
               </div>
 
               <div className="form-group">
-                <label>Asistencia del día *</label>
+                <label>Asistencia del día <span className="text-red-500 ml-1">●</span></label>
                 <select
                   name="id_asistencia"
                   value={formData.id_asistencia}
@@ -364,7 +364,7 @@ function MenuDiario() {
                     <div key={index} className="card mb-2" style={{ background: '#f8fafc' }}>
                       <div className="grid grid-3 gap-2">
                         <div className="form-group">
-                          <label>Rubro *</label>
+                          <label>Rubro <span className="text-red-500 ml-1">●</span></label>
                           <select
                             value={detalle.id_product}
                             onChange={(e) => handleDetalleChange(index, 'id_product', e.target.value)}
@@ -385,7 +385,7 @@ function MenuDiario() {
                         </div>
 
                         <div className="form-group">
-                          <label>Cantidad planificada *</label>
+                          <label>Cantidad planificada <span className="text-red-500 ml-1">●</span></label>
                           <input
                             type="number"
                             step="0.01"

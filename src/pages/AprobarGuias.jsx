@@ -464,7 +464,7 @@ function AprobarGuias() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                {accion === 'aprobar' ? 'Comentarios (opcional):' : 'Motivo del rechazo*:'}
+                {accion === 'aprobar' ? 'Comentarios (opcional):' : <>Motivo del rechazo <span className="text-red-500 ml-1">●</span>:</>}
               </label>
               <textarea
                 value={comentarios}

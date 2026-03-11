@@ -349,7 +349,7 @@ function Usuarios() {
               {!editingUser && (
                 <>
                   <div className="form-group">
-                    <label>Correo electrónico *</label>
+                    <label>Correo electrónico <span className="text-red-500 ml-1">●</span></label>
                     <input
                       type="email"
                       name="email"
@@ -362,7 +362,7 @@ function Usuarios() {
                   </div>
 
                   <div className="form-group">
-                    <label>Contraseña * (mínimo 6 caracteres)</label>
+                    <label>Contraseña <span className="text-red-500 ml-1">●</span> (mínimo 6 caracteres)</label>
                     <input
                       type="text"
                       name="password"
@@ -381,7 +381,7 @@ function Usuarios() {
               )}
 
               <div className="form-group">
-                <label>Nombre completo *</label>
+                <label>Nombre completo <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="text"
                   name="full_name"
@@ -393,7 +393,7 @@ function Usuarios() {
               </div>
 
               <div className="form-group">
-                <label>Nombre de usuario *</label>
+                <label>Nombre de usuario <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="text"
                   name="username"
@@ -411,7 +411,7 @@ function Usuarios() {
               </div>
 
               <div className="form-group">
-                <label>Rol *</label>
+                <label>Rol <span className="text-red-500 ml-1">●</span></label>
                 <select
                   name="id_rol"
                   value={formData.id_rol}
@@ -587,7 +587,7 @@ function Usuarios() {
             </p>
             <form onSubmit={handlePasswordChange}>
               <div className="form-group">
-                <label>Nueva contraseña * (mínimo 6 caracteres)</label>
+                <label>Nueva contraseña <span className="text-red-500 ml-1">●</span> (mínimo 6 caracteres)</label>
                 <input
                   type="text"
                   value={passwordData.newPassword}
@@ -603,7 +603,7 @@ function Usuarios() {
                 </p>
               </div>
               <div className="form-group">
-                <label>Confirmar contraseña *</label>
+                <label>Confirmar contraseña <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="text"
                   value={passwordData.confirmPassword}

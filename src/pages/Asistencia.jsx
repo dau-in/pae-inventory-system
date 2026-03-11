@@ -147,7 +147,7 @@ function Asistencia() {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-2 gap-4">
               <div className="form-group">
-                <label>Fecha *</label>
+                <label>Fecha <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="date"
                   name="fecha"
@@ -158,7 +158,7 @@ function Asistencia() {
               </div>
 
               <div className="form-group">
-                <label>Total de alumnos presentes *</label>
+                <label>Total de alumnos presentes <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="number"
                   name="total_alumnos"

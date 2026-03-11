@@ -252,8 +252,8 @@ function Reportes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.map((item) => (
-                    <tr key={item.id_product}>
+                  {reportData.map((item, index) => (
+                    <tr key={`stock-${item.id_product || 'idx'}-${index}`}>
                       <td className="font-semibold">{item.product_name}</td>
                       <td>{item.category?.category_name || '-'}</td>
                       <td>{item.stock} {item.unit_measure}</td>
@@ -283,8 +283,8 @@ function Reportes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.map((item) => (
-                    <tr key={item.id_input}>
+                  {reportData.map((item, index) => (
+                    <tr key={`entradas-${item.id_input || 'idx'}-${index}`}>
                       <td>{new Date(item.fecha).toLocaleDateString('es-VE')}</td>
                       <td>{item.guia_entrada?.numero_guia_sunagro || '-'}</td>
                       <td>{item.product?.product_name}</td>
@@ -306,8 +306,8 @@ function Reportes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.map((item) => (
-                    <tr key={item.id_output}>
+                  {reportData.map((item, index) => (
+                    <tr key={`salidas-${item.id_output || 'idx'}-${index}`}>
                       <td>{new Date(item.fecha).toLocaleDateString('es-VE')}</td>
                       <td>{item.product?.product_name}</td>
                       <td className="font-semibold">{item.amount} {item.product?.unit_measure}</td>
@@ -331,7 +331,7 @@ function Reportes() {
                 </thead>
                 <tbody>
                   {reportData.map((item, index) => (
-                    <tr key={index}>
+                    <tr key={`lotes-${item.id || 'idx'}-${index}`}>
                       <td className="font-semibold">{item.product_name}</td>
                       <td>{item.cantidad_lote} {item.unit_measure}</td>
                       <td>{item.stock} {item.unit_measure}</td>
@@ -365,11 +365,11 @@ function Reportes() {
                 </thead>
                 <tbody>
                   {reportData.map((item, index) => (
-                    <tr key={index}>
+                    <tr key={`consumo-${item.product_name || 'idx'}-${index}`}>
                       <td className="font-semibold">{item.product_name}</td>
-                      <td>{item.total.toFixed(2)} {item.unit_measure}</td>
-                      <td>{item.veces}</td>
-                      <td>{(item.total / item.veces).toFixed(2)} {item.unit_measure}</td>
+                      <td>{(item.total ?? 0).toFixed(2)} {item.unit_measure}</td>
+                      <td>{item.veces ?? 0}</td>
+                      <td>{item.veces ? ((item.total ?? 0) / item.veces).toFixed(2) : '0.00'} {item.unit_measure}</td>
                     </tr>
                   ))}
                 </tbody>

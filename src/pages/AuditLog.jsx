@@ -2,16 +2,131 @@ import { useState, useEffect } from 'react'
 import { supabase, getLocalDate } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifyError } from '../utils/notifications'
-import { Download } from 'lucide-react'
+import { Download, ChevronLeft, ChevronRight } from 'lucide-react'
+
+const TABLE_LABELS = {
+  product: 'Rubros',
+  guia_entrada: 'Guías de entrada',
+  menu_diario: 'Menú diario',
+  menu_detalle: 'Detalle de menú',
+  output: 'Salidas',
+  input: 'Entradas',
+  asistencia_diaria: 'Asistencia',
+  users: 'Usuarios',
+  category: 'Categorías'
+}
+
+function formatAuditDetails(accion, tabla, detalles, recordId) {
+  try {
+    const modulo = TABLE_LABELS[tabla] || tabla || 'desconocido'
+
+    // Sin detalles: respuesta genérica con ID
+    if (!detalles) return `Operación en ${modulo} (ID: ${recordId || '-'})`
+
+    // Garantizar objeto — JSONB llega como objeto, pero defensivo por si llega string
+    const d = typeof detalles === 'string' ? JSON.parse(detalles) : detalles
+
+    // DELETE — siempre simple, no intentar leer propiedades internas
+    if (accion === 'DELETE') {
+      const nombre = d?.product_name || d?.numero_guia_sunagro || d?.full_name || null
+      return nombre
+        ? `Se eliminó "${nombre}" de ${modulo} (ID: ${recordId || '-'})`
+        : `Se eliminó un registro de ${modulo} (ID: ${recordId || '-'})`
+    }
+
+    // UPDATE — triggers guardan old/new o old_record/new_record
+    if (accion === 'UPDATE') {
+      const newData = d?.new || d?.new_record || null
+      const nombre = newData?.product_name || newData?.numero_guia_sunagro || newData?.full_name
+        || d?.product_name || d?.numero_guia_sunagro || d?.full_name || null
+
+      if (nombre) {
+        return `Se actualizó "${nombre}" en ${modulo} (ID: ${recordId || '-'})`
+      }
+      return `Se actualizó registro en ${modulo} (ID: ${recordId || '-'})`
+    }
+
+    // INSERT — lógica detallada por tabla
+    if (accion === 'INSERT') {
+      switch (tabla) {
+        case 'product': {
+          const nombre = d?.product_name
+          if (!nombre) return `Se registró un rubro (ID: ${recordId || '-'})`
+          const stock = d?.stock !== undefined ? ` (stock: ${d.stock} ${d?.unit_measure || ''})` : ''
+          return `Se registró el rubro "${nombre}"${stock}`
+        }
+        case 'guia_entrada': {
+          const guia = d?.numero_guia_sunagro
+          if (!guia) return `Se registró guía SUNAGRO (ID: ${recordId || '-'})`
+          const fecha = d?.fecha ? ` del ${new Date(d.fecha).toLocaleDateString('es-VE')}` : ''
+          const estado = d?.estado ? ` — Estado: ${d.estado}` : ''
+          return `Se registró guía SUNAGRO N° ${guia}${fecha}${estado}`
+        }
+        case 'input': {
+          const nombre = d?.product_name || d?.product?.product_name
+          const cantidad = d?.amount ? ` por ${d.amount} ${d?.unit_measure || d?.product?.unit_measure || 'unidades'}` : ''
+          const lote = d?.numero_lote ? ` (lote: ${d.numero_lote})` : ''
+          return nombre
+            ? `Se registró entrada de "${nombre}"${cantidad}${lote}`
+            : `Se registró entrada de inventario (ID: ${recordId || '-'})`
+        }
+        case 'output': {
+          const nombre = d?.product_name || d?.product?.product_name
+          const cantidad = d?.amount ? ` por ${d.amount} ${d?.unit_measure || 'unidades'}` : ''
+          const motivo = d?.motivo ? ` — Motivo: ${d.motivo}` : ''
+          return nombre
+            ? `Se registró salida de "${nombre}"${cantidad}${motivo}`
+            : `Se registró salida de inventario (ID: ${recordId || '-'})`
+        }
+        case 'menu_diario': {
+          const fecha = d?.fecha ? ` del ${new Date(d.fecha).toLocaleDateString('es-VE')}` : ''
+          const asist = d?.asistencia ? ` (${d.asistencia} alumnos)` : ''
+          return `Se registró menú del día${fecha}${asist}`
+        }
+        case 'menu_detalle': {
+          const nombre = d?.product_name
+          const cant = d?.cantidad_real_usada || '?'
+          const unidad = d?.unit_measure || 'unidades'
+          return nombre
+            ? `Se usaron ${cant} ${unidad} de "${nombre}"`
+            : `Se registró detalle de menú (ID: ${recordId || '-'})`
+        }
+        case 'asistencia_diaria': {
+          const fecha = d?.fecha ? ` del ${new Date(d.fecha).toLocaleDateString('es-VE')}` : ''
+          const alumnos = d?.alumnos_presentes ? ` — ${d.alumnos_presentes} alumnos presentes` : ''
+          return `Se registró asistencia${fecha}${alumnos}`
+        }
+        case 'users': {
+          const nombre = d?.full_name
+          const user = d?.username ? ` (@${d.username})` : ''
+          return nombre
+            ? `Se registró usuario "${nombre}"${user}`
+            : `Se registró usuario (ID: ${recordId || '-'})`
+        }
+        default:
+          return `Se creó registro en ${modulo} (ID: ${recordId || '-'})`
+      }
+    }
+
+    // Acción desconocida
+    return `Operación técnica en ${modulo} (ID: ${recordId || '-'})`
+  } catch {
+    // Fallback absoluto — nunca rompe
+    return `Operación técnica en ${TABLE_LABELS[tabla] || tabla || 'sistema'} (ID: ${recordId || '-'})`
+  }
+}
+
+const ITEMS_PER_PAGE = 25
 
 function AuditLog() {
   const [loading, setLoading] = useState(true)
   const [logs, setLogs] = useState([])
+  const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState({
     action_type: '',
     table_affected: '',
-    desde: (() => { const d = new Date(); d.setDate(d.getDate() - 7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })(),
-    hasta: getLocalDate()
+    desde: '',
+    hasta: ''
   })
 
   useEffect(() => {
@@ -24,10 +139,16 @@ function AuditLog() {
       let query = supabase
         .from('audit_log')
         .select('*')
-        .gte('timestamp', filters.desde + 'T00:00:00')
-        .lte('timestamp', filters.hasta + 'T23:59:59')
         .order('timestamp', { ascending: false })
         .limit(100)
+
+      if (filters.desde) {
+        query = query.gte('timestamp', filters.desde + 'T00:00:00')
+      }
+
+      if (filters.hasta) {
+        query = query.lte('timestamp', filters.hasta + 'T23:59:59')
+      }
 
       if (filters.action_type) {
         query = query.eq('action_type', filters.action_type)
@@ -80,6 +201,7 @@ function AuditLog() {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target
+    setCurrentPage(1)
     setFilters(prev => ({
       ...prev,
       [name]: value
@@ -92,7 +214,7 @@ function AuditLog() {
     logs.forEach(log => {
       const timestamp = new Date(log.timestamp).toLocaleString('es-VE')
       const user = log.users?.full_name || 'Sistema'
-      const details = (log.details || '').replace(/"/g, '""') // Escapar comillas
+      const details = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id).replace(/"/g, '""')
       
       csv += `"${timestamp}","${user}","${log.action_type}","${log.table_affected || '-'}","${log.record_id || '-'}","${details}"\n`
     })
@@ -103,6 +225,11 @@ function AuditLog() {
     link.download = `auditoria_${getLocalDate()}.csv`
     link.click()
   }
+
+  const totalPages = Math.ceil(logs.length / ITEMS_PER_PAGE)
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE
+  const currentLogs = logs.slice(indexOfFirstItem, indexOfLastItem)
 
   return (
     <div>
@@ -167,8 +294,12 @@ function AuditLog() {
       {/* Tabla de logs */}
       <div className="card">
         <div className="flex-between mb-4">
-          <h3 className="font-semibold">Últimos 100 registros</h3>
-          <span className="text-sm text-secondary">Total: {logs.length}</span>
+          <h3 className="font-semibold">Registros de auditoría</h3>
+          <span className="text-sm text-secondary">
+            {logs.length > 0
+              ? `${indexOfFirstItem + 1}–${Math.min(indexOfLastItem, logs.length)} de ${logs.length}`
+              : 'Total: 0'}
+          </span>
         </div>
 
         {loading ? (
@@ -191,7 +322,14 @@ function AuditLog() {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
+                {currentLogs.map((log) => {
+                  let detalleTexto
+                  try {
+                    detalleTexto = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id)
+                  } catch {
+                    detalleTexto = `Operación en ${log.table_affected || 'sistema'} (ID: ${log.record_id || '-'})`
+                  }
+                  return (
                   <tr key={log.id_log}>
                     <td className="text-sm">
                       {new Date(log.timestamp).toLocaleString('es-VE')}
@@ -206,28 +344,41 @@ function AuditLog() {
                         {log.action_type}
                       </span>
                     </td>
-                    <td className="text-sm">{log.table_affected || '-'}</td>
+                    <td className="text-sm">{TABLE_LABELS[log.table_affected] || log.table_affected || '-'}</td>
                     <td className="text-sm">{log.record_id || '-'}</td>
-                    <td className="text-sm" style={{ maxWidth: '300px' }}>
-                      <details>
-                        <summary style={{ cursor: 'pointer' }}>Ver detalles</summary>
-                        <pre style={{ 
-                          fontSize: '0.75rem', 
-                          marginTop: '0.5rem', 
-                          padding: '0.5rem',
-                          background: '#f8fafc',
-                          borderRadius: '4px',
-                          overflow: 'auto',
-                          maxHeight: '200px'
-                        }}>
-                          {log.details || 'Sin detalles'}
-                        </pre>
-                      </details>
+                    <td className="text-sm" style={{ maxWidth: '400px' }}>
+                      {detalleTexto}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Controles de paginación */}
+        {!loading && logs.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+            <button
+              className="btn btn-secondary btn-sm flex items-center gap-1"
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="w-4 h-4" /> Anterior
+            </button>
+
+            <span className="text-sm text-secondary">
+              Página {currentPage} de {totalPages}
+            </span>
+
+            <button
+              className="btn btn-secondary btn-sm flex items-center gap-1"
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              Siguiente <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>

@@ -206,7 +206,7 @@ function Porciones() {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-2 gap-4">
               <div className="form-group">
-                <label>Rubro *</label>
+                <label>Rubro <span className="text-red-500 ml-1">●</span></label>
                 <select
                   name="id_product"
                   value={formData.id_product}
@@ -224,7 +224,7 @@ function Porciones() {
               </div>
 
               <div className="form-group">
-                <label>Rendimiento (porciones) *</label>
+                <label>Rendimiento (porciones) <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="number"
                   step="0.01"
@@ -240,7 +240,7 @@ function Porciones() {
               </div>
 
               <div className="form-group">
-                <label>Unidad de medida *</label>
+                <label>Unidad de medida <span className="text-red-500 ml-1">●</span></label>
                 <select
                   name="unit_measure"
                   value={formData.unit_measure}
