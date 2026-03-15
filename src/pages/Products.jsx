@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, getUserData } from '../supabaseClient'
-import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
+import { notifySuccess, notifyError, confirmDanger, confirmAction } from '../utils/notifications'
 import GlobalLoader from '../components/GlobalLoader'
-import { X, Plus, Pencil, Trash2 } from 'lucide-react'
+import { X, Plus, Pencil, Archive, RotateCcw, Trash2, AlertTriangle } from 'lucide-react'
 
 function Products() {
   const [loading, setLoading] = useState(true)
@@ -12,6 +12,7 @@ function Products() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [categoryError, setCategoryError] = useState(false)
   const [userRole, setUserRole] = useState(null)
+  const [activeTab, setActiveTab] = useState('activos')
   const [formData, setFormData] = useState({
     product_name: '',
     unit_measure: 'kg',
@@ -139,26 +140,82 @@ function Products() {
     setShowForm(true)
   }
 
-  const handleDelete = async (id) => {
-    const confirmed = await confirmDanger('¿Eliminar rubro?', 'Esta acción no se puede deshacer')
+  const handleArchive = async (product) => {
+    const confirmed = await confirmAction(
+      '¿Archivar este rubro?',
+      `"${product.product_name}" dejará de aparecer en la lista activa. Podrás restaurarlo en cualquier momento desde el Catálogo Archivado.`,
+      'Archivar'
+    )
     if (!confirmed) return
 
     try {
+      const { error } = await supabase
+        .from('product')
+        .update({ is_archived: true })
+        .eq('id_product', product.id_product)
+
+      if (error) throw error
+      notifySuccess('Archivado', `"${product.product_name}" fue archivado correctamente`)
+      loadProducts()
+    } catch (error) {
+      console.error('Error archivando rubro:', error)
+      notifyError('Error al archivar', error.message)
+    }
+  }
+
+  const handleRestore = async (product) => {
+    try {
+      const { error } = await supabase
+        .from('product')
+        .update({ is_archived: false })
+        .eq('id_product', product.id_product)
+
+      if (error) throw error
+      notifySuccess('Restaurado', `"${product.product_name}" fue restaurado al inventario activo`)
+      loadProducts()
+    } catch (error) {
+      console.error('Error restaurando rubro:', error)
+      notifyError('Error al restaurar', error.message)
+    }
+  }
+
+  const handlePermanentDelete = async (id) => {
+    const confirmed = await confirmDanger(
+      '¿Eliminar definitivamente?',
+      'Esta acción es irreversible. El rubro será eliminado permanentemente del sistema.'
+    )
+    if (!confirmed) return
+
+    try {
+      // Consultar si tiene movimientos asociados
+      const [inputCheck, outputCheck, porcionCheck] = await Promise.all([
+        supabase.from('input').select('id_input', { count: 'exact', head: true }).eq('id_product', id),
+        supabase.from('output').select('id_output', { count: 'exact', head: true }).eq('id_product', id),
+        supabase.from('receta_porcion').select('id_porcion', { count: 'exact', head: true }).eq('id_product', id)
+      ])
+
+      const totalRecords = (inputCheck.count || 0) + (outputCheck.count || 0) + (porcionCheck.count || 0)
+
+      if (totalRecords > 0) {
+        notifyError(
+          'No se puede eliminar',
+          'Este rubro ya posee registros en el sistema (entradas, salidas o porciones). Por favor, utilice la opción de Archivar.'
+        )
+        return
+      }
+
       const { error } = await supabase
         .from('product')
         .delete()
         .eq('id_product', id)
 
       if (error) throw error
-      notifySuccess('Eliminado', 'El rubro fue eliminado')
+      notifySuccess('Eliminado', 'El rubro fue eliminado permanentemente')
+      resetForm()
       loadProducts()
     } catch (error) {
       console.error('Error eliminando rubro:', error)
-      if (error.code === '23503' || error.status === 409) {
-        notifyError('No se puede eliminar', 'Este rubro ya está siendo usado en Porciones, Entradas o Salidas. Para mantener el historial, no debe borrarse.')
-      } else {
-        notifyError('Error al eliminar', error.message)
-      }
+      notifyError('Error al eliminar', error.message)
     }
   }
 
@@ -182,7 +239,11 @@ function Products() {
     return <span className={`${base} bg-green-50 text-green-700`}>SUFICIENTE</span>
   }
 
-  const sortedProducts = [...products].sort((a, b) => (b.stock ?? 0) - (a.stock ?? 0))
+  // Filtrar por tab activo
+  const filteredProducts = products.filter(p =>
+    activeTab === 'activos' ? !p.is_archived : p.is_archived === true
+  )
+  const sortedProducts = [...filteredProducts].sort((a, b) => (b.stock ?? 0) - (a.stock ?? 0))
 
   if (loading && products.length === 0) return <GlobalLoader text="Cargando inventario..." />
 
@@ -192,12 +253,51 @@ function Products() {
         <h2 className="text-2xl font-bold">Inventario de Rubros</h2>
         {userRole !== 3 && (
           <button
-            className="btn btn-primary flex items-center gap-2"
-            onClick={() => setShowForm(!showForm)}
+            className={`btn btn-primary flex items-center gap-2 transition-opacity duration-300 ${activeTab === 'archivados' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={() => { if (activeTab === 'activos') setShowForm(!showForm) }}
+            disabled={activeTab === 'archivados'}
           >
-            {showForm ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nuevo Rubro</>}
+            {showForm && activeTab === 'activos' ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nuevo Rubro</>}
           </button>
         )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: '#FFF7ED' }}>
+        <button
+          onClick={() => { setActiveTab('activos'); resetForm() }}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out"
+          style={activeTab === 'activos'
+            ? { background: '#fff', color: '#9a3412', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+            : { background: 'transparent', color: '#78716c' }
+          }
+        >
+          <Plus className="w-4 h-4" />
+          Rubros Activos
+          <span className="ml-1 px-2 py-0.5 text-xs rounded-full transition-all duration-300 ease-in-out" style={activeTab === 'activos'
+            ? { background: '#FFEDD5', color: '#9a3412' }
+            : { background: '#e7e5e4', color: '#78716c' }
+          }>
+            {products.filter(p => !p.is_archived).length}
+          </span>
+        </button>
+        <button
+          onClick={() => { setActiveTab('archivados'); resetForm() }}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out"
+          style={activeTab === 'archivados'
+            ? { background: '#fff', color: '#9a3412', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
+            : { background: 'transparent', color: '#78716c' }
+          }
+        >
+          <Archive className="w-4 h-4" />
+          Catálogo Archivado
+          <span className="ml-1 px-2 py-0.5 text-xs rounded-full transition-all duration-300 ease-in-out" style={activeTab === 'archivados'
+            ? { background: '#FFEDD5', color: '#9a3412' }
+            : { background: '#e7e5e4', color: '#78716c' }
+          }>
+            {products.filter(p => p.is_archived === true).length}
+          </span>
+        </button>
       </div>
 
       {/* Formulario (oculto para Supervisor) */}
@@ -265,27 +365,44 @@ function Products() {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Guardando...' : 'Guardar'}
               </button>
               <button type="button" className="btn btn-secondary" onClick={resetForm}>
                 Cancelar
               </button>
+
+              {/* Borrado Físico Condicional — Solo en modo edición */}
+              {editingProduct && userRole !== 3 && (
+                <button
+                  type="button"
+                  className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+                  onClick={() => handlePermanentDelete(editingProduct.id_product)}
+                >
+                  <Trash2 className="w-4 h-4" /> Eliminar Definitivamente
+                </button>
+              )}
             </div>
           </form>
         </div>
       )}
 
       {/* Tabla de rubros */}
-      <div className="card">
+      <div key={activeTab} className="card" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
         <div className="overflow-x-auto">
-          {products.length === 0 ? (
+          {sortedProducts.length === 0 ? (
             <div className="empty-state">
-              <p>No hay rubros registrados</p>
-              <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>
-                Crear primer rubro
-              </button>
+              {activeTab === 'activos' ? (
+                <>
+                  <p>No hay rubros activos registrados</p>
+                  <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>
+                    Crear primer rubro
+                  </button>
+                </>
+              ) : (
+                <p className="text-slate-500">No hay rubros archivados</p>
+              )}
             </div>
           ) : (
             <table>
@@ -314,18 +431,31 @@ function Products() {
                     {userRole !== 3 && (
                       <td>
                         <div className="flex gap-2">
-                          <button
-                            className="btn btn-sm btn-primary flex items-center gap-2"
-                            onClick={() => handleEdit(product)}
-                          >
-                            <Pencil className="w-4 h-4" /> Editar
-                          </button>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleDelete(product.id_product)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {activeTab === 'activos' ? (
+                            <>
+                              <button
+                                className="btn btn-sm btn-primary flex items-center gap-2"
+                                onClick={() => handleEdit(product)}
+                              >
+                                <Pencil className="w-4 h-4" /> Editar
+                              </button>
+                              <button
+                                className="btn btn-sm flex items-center gap-2"
+                                style={{ background: '#FFF7ED', color: '#9a3412', border: '1px solid #FDBA74' }}
+                                onClick={() => handleArchive(product)}
+                              >
+                                <Archive className="w-4 h-4" /> Archivar
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="btn btn-sm flex items-center gap-2"
+                              style={{ background: '#F0FDF4', color: '#166534', border: '1px solid #86efac' }}
+                              onClick={() => handleRestore(product)}
+                            >
+                              <RotateCcw className="w-4 h-4" /> Restaurar
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}

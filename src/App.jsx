@@ -38,7 +38,16 @@ function App() {
       setSession(session)
     })
 
-    return () => subscription.unsubscribe()
+    // Bloquear clic derecho en imágenes
+    const blockImgContext = (e) => {
+      if (e.target.tagName === 'IMG') e.preventDefault()
+    }
+    document.addEventListener('contextmenu', blockImgContext)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('contextmenu', blockImgContext)
+    }
   }, [])
 
   if (loading) {

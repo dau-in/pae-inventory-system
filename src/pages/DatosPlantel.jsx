@@ -67,8 +67,32 @@ function DatosPlantel() {
       notifyError('Archivo inválido', 'Solo se permiten imágenes (PNG, JPG, etc.)')
       return
     }
-    setLogoFile(file)
-    setLogoPreview(URL.createObjectURL(file))
+
+    // Validar peso (máx 2 MB)
+    if (file.size > 2 * 1024 * 1024) {
+      notifyError('Archivo muy pesado', 'El logo no debe superar los 2 MB.')
+      e.target.value = ''
+      return
+    }
+
+    // Validar resolución (máx 1024x1024)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(img.src)
+      if (img.width > 1024 || img.height > 1024) {
+        notifyError('Resolución excedida', `La imagen es de ${img.width}×${img.height} px. Máximo permitido: 1024×1024 px.`)
+        e.target.value = ''
+        return
+      }
+      setLogoFile(file)
+      setLogoPreview(URL.createObjectURL(file))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src)
+      notifyError('Imagen corrupta', 'No se pudo leer la imagen seleccionada.')
+      e.target.value = ''
+    }
+    img.src = URL.createObjectURL(file)
   }
 
   const handleSave = async () => {
@@ -82,6 +106,18 @@ function DatosPlantel() {
       let logo_url = institucion?.logo_url || ''
 
       if (logoFile) {
+        // Reciclar logo viejo del bucket si existe
+        if (institucion?.logo_url) {
+          try {
+            const oldPath = institucion.logo_url.split('/logos/').pop()
+            if (oldPath) {
+              await supabase.storage.from('logos').remove([oldPath])
+            }
+          } catch {
+            // No bloquear si falla el borrado del logo viejo
+          }
+        }
+
         const fileExt = logoFile.name.split('.').pop() || 'png'
         const filePath = `logo-${Date.now()}.${fileExt}`
         const { error: uploadError } = await supabase.storage
@@ -154,6 +190,7 @@ function DatosPlantel() {
                 />
               </label>
               <p className="text-xs text-slate-500 mt-2">Click para cambiar el logo</p>
+              <p className="text-xs text-slate-400 mt-1">Formato PNG o JPG. Máximo 2 MB. Resolución máxima: 1024 × 1024 px.</p>
             </div>
           ) : (
             /* --- Modo Lectura: Logo --- */

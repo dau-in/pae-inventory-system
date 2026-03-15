@@ -1,24 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, getLocalDate } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifyError } from '../utils/notifications'
 import { Download, ChevronLeft, ChevronRight } from 'lucide-react'
 
-const TABLE_LABELS = {
-  product: 'Rubros',
-  guia_entrada: 'Guías de entrada',
-  menu_diario: 'Menú diario',
-  menu_detalle: 'Detalle de menú',
-  output: 'Salidas',
-  input: 'Entradas',
-  asistencia_diaria: 'Asistencia',
-  users: 'Usuarios',
-  category: 'Categorías'
-}
-
 function formatAuditDetails(accion, tabla, detalles, recordId) {
   try {
-    const modulo = TABLE_LABELS[tabla] || tabla || 'desconocido'
+    const modulo = tabla || 'desconocido'
 
     // Sin detalles: respuesta genérica con ID
     if (!detalles) return `Operación en ${modulo} (ID: ${recordId || '-'})`
@@ -112,7 +100,7 @@ function formatAuditDetails(accion, tabla, detalles, recordId) {
     return `Operación técnica en ${modulo} (ID: ${recordId || '-'})`
   } catch {
     // Fallback absoluto — nunca rompe
-    return `Operación técnica en ${TABLE_LABELS[tabla] || tabla || 'sistema'} (ID: ${recordId || '-'})`
+    return `Operación técnica en ${tabla || 'sistema'} (ID: ${recordId || '-'})`
   }
 }
 
@@ -121,7 +109,9 @@ const ITEMS_PER_PAGE = 25
 function AuditLog() {
   const [loading, setLoading] = useState(true)
   const [logs, setLogs] = useState([])
+  const [totalCount, setTotalCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+  const tableTopRef = useRef(null)
   const [filters, setFilters] = useState({
     action_type: '',
     table_affected: '',
@@ -131,16 +121,25 @@ function AuditLog() {
 
   useEffect(() => {
     loadLogs()
-  }, [filters])
+  }, [filters, currentPage])
+
+  useEffect(() => {
+    if (tableTopRef.current) {
+      tableTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [logs])
 
   const loadLogs = async () => {
     setLoading(true)
     try {
+      const from = (currentPage - 1) * ITEMS_PER_PAGE
+      const to = from + ITEMS_PER_PAGE - 1
+
       let query = supabase
         .from('audit_log')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('timestamp', { ascending: false })
-        .limit(100)
+        .range(from, to)
 
       if (filters.desde) {
         query = query.gte('timestamp', filters.desde + 'T00:00:00')
@@ -158,32 +157,34 @@ function AuditLog() {
         query = query.eq('table_affected', filters.table_affected)
       }
 
-      const { data, error } = await query
+      const { data, error, count } = await query
 
       if (error) throw error
-      
+
+      setTotalCount(count || 0)
+
       // Obtener nombres de usuarios por separado
       if (data && data.length > 0) {
         const userIds = [...new Set(data.map(log => log.id_user).filter(Boolean))]
-        
+
         if (userIds.length > 0) {
           const { data: usersData } = await supabase
             .from('users')
             .select('id_user, full_name, username')
             .in('id_user', userIds)
-          
+
           // Mapear usuarios a los logs
           const usersMap = {}
           usersData?.forEach(user => {
             usersMap[user.id_user] = user
           })
-          
+
           // Agregar info de usuario a cada log
           const logsWithUsers = data.map(log => ({
             ...log,
             users: usersMap[log.id_user] || null
           }))
-          
+
           setLogs(logsWithUsers)
         } else {
           setLogs(data || [])
@@ -226,10 +227,8 @@ function AuditLog() {
     link.click()
   }
 
-  const totalPages = Math.ceil(logs.length / ITEMS_PER_PAGE)
-  const indexOfLastItem = currentPage * ITEMS_PER_PAGE
-  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE
-  const currentLogs = logs.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
+  const indexOfFirstItem = (currentPage - 1) * ITEMS_PER_PAGE
 
   return (
     <div>
@@ -261,11 +260,12 @@ function AuditLog() {
             <label>Tabla afectada</label>
             <select name="table_affected" value={filters.table_affected} onChange={handleFilterChange}>
               <option value="">Todas</option>
-              <option value="product">Rubros</option>
-              <option value="guia_entrada">Guías de entrada</option>
-              <option value="menu_diario">Menús</option>
-              <option value="output">Salidas</option>
-              <option value="asistencia_diaria">Asistencia</option>
+              <option value="product">product</option>
+              <option value="guia_entrada">guia_entrada</option>
+              <option value="menu_diario">menu_diario</option>
+              <option value="output">output</option>
+              <option value="input">input</option>
+              <option value="asistencia_diaria">asistencia_diaria</option>
             </select>
           </div>
 
@@ -292,12 +292,12 @@ function AuditLog() {
       </div>
 
       {/* Tabla de logs */}
-      <div className="card">
+      <div ref={tableTopRef} className="card flex flex-col min-h-[500px]">
         <div className="flex-between mb-4">
           <h3 className="font-semibold">Registros de auditoría</h3>
           <span className="text-sm text-secondary">
-            {logs.length > 0
-              ? `${indexOfFirstItem + 1}–${Math.min(indexOfLastItem, logs.length)} de ${logs.length}`
+            {totalCount > 0
+              ? `${indexOfFirstItem + 1}–${Math.min(indexOfFirstItem + logs.length, totalCount)} de ${totalCount}`
               : 'Total: 0'}
           </span>
         </div>
@@ -322,7 +322,7 @@ function AuditLog() {
                 </tr>
               </thead>
               <tbody>
-                {currentLogs.map((log) => {
+                {logs.map((log) => {
                   let detalleTexto
                   try {
                     detalleTexto = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id)
@@ -344,9 +344,9 @@ function AuditLog() {
                         {log.action_type}
                       </span>
                     </td>
-                    <td className="text-sm">{TABLE_LABELS[log.table_affected] || log.table_affected || '-'}</td>
+                    <td className="text-sm">{log.table_affected || '-'}</td>
                     <td className="text-sm">{log.record_id || '-'}</td>
-                    <td className="text-sm" style={{ maxWidth: '400px' }}>
+                    <td className="text-sm truncate max-w-[300px]" title={detalleTexto}>
                       {detalleTexto}
                     </td>
                   </tr>
@@ -357,23 +357,29 @@ function AuditLog() {
           </div>
         )}
 
-        {/* Controles de paginación */}
-        {!loading && logs.length > ITEMS_PER_PAGE && (
-          <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+        {/* Controles de paginación — anclados al fondo */}
+        {!loading && totalCount > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-center gap-4 pt-6 pb-4 mt-auto">
             <button
-              className="btn btn-secondary btn-sm flex items-center gap-1"
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+              onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = '#FFD9A8' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#FFF7ED' }}
               onClick={() => setCurrentPage(prev => prev - 1)}
               disabled={currentPage === 1}
             >
               <ChevronLeft className="w-4 h-4" /> Anterior
             </button>
 
-            <span className="text-sm text-secondary">
+            <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
               Página {currentPage} de {totalPages}
             </span>
 
             <button
-              className="btn btn-secondary btn-sm flex items-center gap-1"
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+              onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = '#FFD9A8' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#FFF7ED' }}
               onClick={() => setCurrentPage(prev => prev + 1)}
               disabled={currentPage >= totalPages}
             >
