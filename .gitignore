@@ -20,12 +20,7 @@ Thumbs.db
 # Backups
 src_backup_/
 
-# Temp files
-nul
-tmpclaude-*
-
-# Claude agent files
-.agents/
-.claude/
+# Local / Internal
+.agent/
+CONTEXT.md
 skills-lock.json
-AI_CONTEXT.md
