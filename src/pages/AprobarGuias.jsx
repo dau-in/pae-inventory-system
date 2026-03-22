@@ -50,7 +50,7 @@ function AprobarGuias() {
               stock
             )
           ),
-          creador:users!created_by(full_name, username)
+          creador:users!created_by(username)
         `)
         .eq('estado', 'Pendiente')
         .order('fecha', { ascending: false })
@@ -226,7 +226,7 @@ function AprobarGuias() {
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
                     <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> Fecha:</span> {new Date(guia.fecha).toLocaleDateString('es-VE')} |
-                    <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Creado por:</span> <strong>{guia.creador?.full_name || 'Desconocido'}</strong>
+                    <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Creado por:</span> <strong>{guia.creador?.username || 'Desconocido'}</strong>
                   </div>
                   {guia.numero_guia_sisecal && (
                     <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>

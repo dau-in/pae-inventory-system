@@ -54,8 +54,8 @@ function GuiasEntrada() {
             lotes_detalle,
             product(product_name, unit_measure)
           ),
-          creador:users!created_by(full_name),
-          aprobador:users!aprobado_por(full_name)
+          creador:users!created_by(username),
+          aprobador:users!aprobado_por(username)
         `)
         .gte('fecha', fechaDesde)
         .lte('fecha', fechaHasta)
@@ -918,27 +918,27 @@ function GuiasEntrada() {
                 </div>
 
                 {guia.estado === 'Aprobada' && guia.aprobador && (
-                  <div style={{
+                  <div className="flex items-center gap-1 flex-wrap" style={{
                     padding: '0.75rem',
                     background: '#d1fae5',
                     borderRadius: '6px',
                     fontSize: '0.9rem',
                     marginBottom: '1rem'
                   }}>
-                    <span className="inline-flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Aprobado por:</span> <strong>{guia.aprobador.full_name}</strong> el{' '}
+                    <CheckCircle className="w-4 h-4" /> Aprobado por: <strong>{guia.aprobador.username}</strong> el{' '}
                     {new Date(guia.fecha_aprobacion).toLocaleDateString('es-VE')}
                   </div>
                 )}
 
                 {guia.estado === 'Rechazada' && guia.aprobador && (
-                  <div style={{
+                  <div className="flex items-center gap-1 flex-wrap" style={{
                     padding: '0.75rem',
                     background: '#fee2e2',
                     borderRadius: '6px',
                     fontSize: '0.9rem',
                     marginBottom: '1rem'
                   }}>
-                    <span className="inline-flex items-center gap-1"><XCircle className="w-4 h-4" /> Rechazado por:</span> <strong>{guia.aprobador.full_name}</strong><br/>
+                    <XCircle className="w-4 h-4" /> Rechazado por: <strong>{guia.aprobador.username}</strong><br/>
                     Motivo: {guia.comentarios_aprobacion}
                   </div>
                 )}

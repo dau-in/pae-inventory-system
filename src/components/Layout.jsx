@@ -136,7 +136,7 @@ function Layout() {
         <div className="sidebar-footer">
           {userData && (
             <div className="user-info">
-              <p className="font-semibold">{userData.full_name}</p>
+              <p className="font-semibold">{userData.username}</p>
               <p className="text-sm text-secondary">{userData.rol?.rol_name}</p>
             </div>
           )}

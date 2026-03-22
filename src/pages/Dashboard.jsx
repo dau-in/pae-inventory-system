@@ -62,7 +62,7 @@ function Dashboard() {
         if (userIds.length > 0) {
           const { data: usersData } = await supabase
             .from('users')
-            .select('id_user, full_name')
+            .select('id_user, username')
             .in('id_user', userIds)
           
           const usersMap = {}
@@ -145,7 +145,7 @@ function Dashboard() {
               <tbody>
                 {recentActivity.map((log) => (
                   <tr key={log.id_log}>
-                    <td>{log.users?.full_name || 'Desconocido'}</td>
+                    <td>{log.users?.username || 'Desconocido'}</td>
                     <td>
                       <span className={`badge ${
                         log.action_type === 'INSERT' ? 'badge-success' :

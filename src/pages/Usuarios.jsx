@@ -15,7 +15,6 @@ function Usuarios() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    full_name: '',
     username: '',
     id_rol: 2
   })
@@ -125,7 +124,6 @@ function Usuarios() {
       await createUserAccount(
         formData.email,
         formData.password,
-        formData.full_name,
         formData.username,
         parseInt(formData.id_rol)
       )
@@ -135,10 +133,8 @@ function Usuarios() {
       loadUsuarios()
     } catch (error) {
       console.error('Error creando usuario:', error)
-      if (error.message.includes('already registered')) {
-        notifyError('Error', 'Ya existe un usuario con ese correo electrónico')
-      } else if (error.message.includes('username')) {
-        notifyError('Error', 'Ya existe un usuario con ese nombre de usuario')
+      if (error.message?.includes('already registered') || error.message?.includes('already been registered') || error.message?.includes('User already registered')) {
+        notifyError('Correo duplicado', 'Este correo ya está registrado en el sistema.')
       } else {
         notifyError('Error al crear usuario', error.message)
       }
@@ -166,7 +162,6 @@ function Usuarios() {
     setFormData({
       email: '',
       password: '',
-      full_name: user.full_name,
       username: user.username,
       id_rol: user.id_rol
     })
@@ -182,7 +177,6 @@ function Usuarios() {
       const { error } = await supabase
         .from('users')
         .update({
-          full_name: formData.full_name,
           username: formData.username,
           id_rol: parseInt(formData.id_rol)
         })
@@ -219,7 +213,7 @@ function Usuarios() {
     const newStatus = !user.is_active
     const action = newStatus ? 'activar' : 'desactivar'
 
-    const confirmed = await confirmDanger(`¿${action} usuario?`, `¿Está seguro de ${action} al usuario "${user.full_name}"?`, action === 'activar' ? 'Activar' : 'Desactivar')
+    const confirmed = await confirmDanger(`¿${action} usuario?`, `¿Está seguro de ${action} al usuario "${user.username}"?`, action === 'activar' ? 'Activar' : 'Desactivar')
     if (!confirmed) return
 
     try {
@@ -241,7 +235,6 @@ function Usuarios() {
     setFormData({
       email: '',
       password: '',
-      full_name: '',
       username: '',
       id_rol: 2
     })
@@ -276,7 +269,7 @@ function Usuarios() {
 
     const confirmed = await confirmAction(
       '¿Cambiar contraseña?',
-      `¿Está seguro de cambiar la contraseña de "${passwordTarget.full_name}"?`,
+      `¿Está seguro de cambiar la contraseña de "${passwordTarget.username}"?`,
       'Cambiar'
     )
     if (!confirmed) return
@@ -286,7 +279,7 @@ function Usuarios() {
       await changeUserPassword(passwordTarget.id_user, passwordData.newPassword)
       notifyInfo(
         'Contraseña cambiada',
-        `<b>Nueva contraseña para ${passwordTarget.full_name}:</b><br><br>` +
+        `<b>Nueva contraseña para ${passwordTarget.username}:</b><br><br>` +
         `<code style="font-size: 1.2rem; padding: 0.5rem; background: #f1f5f9; border-radius: 4px;">${passwordData.newPassword}</code><br><br>` +
         `Comparta esta contraseña con el usuario.`
       )
@@ -342,7 +335,7 @@ function Usuarios() {
       {showForm && (
         <div className="card mb-4">
           <h3 className="text-lg font-semibold mb-4">
-            {editingUser ? `Editar: ${editingUser.full_name}` : 'Crear Nuevo Usuario'}
+            {editingUser ? `Editar: ${editingUser.username}` : 'Crear Nuevo Usuario'}
           </h3>
           <form onSubmit={editingUser ? handleUpdate : handleCreate}>
             <div className="grid grid-2 gap-4">
@@ -381,33 +374,15 @@ function Usuarios() {
               )}
 
               <div className="form-group">
-                <label>Nombre completo <span className="text-red-500 ml-1">●</span></label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleInputChange}
-                  placeholder="Nombre y Apellido"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Nombre de usuario <span className="text-red-500 ml-1">●</span></label>
+                <label>Usuario <span className="text-red-500 ml-1">●</span></label>
                 <input
                   type="text"
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  placeholder="nombre.usuario"
+                  placeholder="Nombre y Apellido"
                   required
-                  disabled={!!editingUser}
                 />
-                {editingUser && (
-                  <p className="text-sm text-secondary mt-1">
-                    El nombre de usuario no se puede cambiar
-                  </p>
-                )}
               </div>
 
               <div className="form-group">
@@ -456,9 +431,8 @@ function Usuarios() {
             <table>
               <thead>
                 <tr>
-                  <th>Nombre</th>
                   <th>Usuario</th>
-                  <th>Rol</th>
+                  <th className="text-center">Rol</th>
                   <th>Estado</th>
                   <th>Conexión</th>
                   <th>Última IP</th>
@@ -469,9 +443,8 @@ function Usuarios() {
               <tbody>
                 {usuarios.map(user => (
                   <tr key={user.id_user} style={{ opacity: user.is_active === false ? 0.5 : 1 }}>
-                    <td className="font-semibold">{user.full_name}</td>
-                    <td>{user.username}</td>
-                    <td>
+                    <td className="font-semibold">{user.username}</td>
+                    <td className="text-center">
                       <span className={`badge ${
                         user.id_rol === 4 ? 'badge-danger' :
                         user.id_rol === 1 ? 'badge-danger' :
@@ -583,7 +556,7 @@ function Usuarios() {
               <span className="flex items-center gap-2"><KeyRound className="w-5 h-5" /> Cambiar Contraseña</span>
             </h3>
             <p className="text-sm text-secondary mb-4">
-              Usuario: <strong>{passwordTarget.full_name}</strong> ({passwordTarget.username})
+              Usuario: <strong>{passwordTarget.username}</strong>
             </p>
             <form onSubmit={handlePasswordChange}>
               <div className="form-group">

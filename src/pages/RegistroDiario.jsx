@@ -44,7 +44,7 @@ function RegistroDiario() {
     try {
       const { data, error } = await supabase
         .from('registro_diario')
-        .select('*, creador:users!created_by(full_name)')
+        .select('*, creador:users!created_by(username)')
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(50)
@@ -351,7 +351,7 @@ function RegistroDiario() {
                         <span className="badge badge-primary">{registro.turno}</span>
                       </td>
                       <td>{registro.asistencia_total} alumnos</td>
-                      <td className="text-sm">{registro.creador?.full_name || '-'}</td>
+                      <td className="text-sm">{registro.creador?.username || '-'}</td>
                       <td className="text-sm">{registro.notas || '-'}</td>
                       <td>
                         <button

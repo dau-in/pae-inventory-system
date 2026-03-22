@@ -70,7 +70,7 @@ export const getFirstDayOfMonth = () => {
 }
 
 // Helper para crear una cuenta de usuario (usa cliente separado para no cerrar sesión del Director)
-export const createUserAccount = async (email, password, fullName, username, idRol) => {
+export const createUserAccount = async (email, password, username, idRol) => {
   // 1. Crear usuario en auth.users con cliente separado
   const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
     email,
@@ -86,7 +86,6 @@ export const createUserAccount = async (email, password, fullName, username, idR
     .insert({
       id_user: authData.user.id,
       username,
-      full_name: fullName,
       id_rol: idRol,
     })
 

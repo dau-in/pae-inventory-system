@@ -16,7 +16,7 @@ function formatAuditDetails(accion, tabla, detalles, recordId) {
 
     // DELETE — siempre simple, no intentar leer propiedades internas
     if (accion === 'DELETE') {
-      const nombre = d?.product_name || d?.numero_guia_sunagro || d?.full_name || null
+      const nombre = d?.product_name || d?.numero_guia_sunagro || d?.username || d?.full_name || null
       return nombre
         ? `Se eliminó "${nombre}" de ${modulo} (ID: ${recordId || '-'})`
         : `Se eliminó un registro de ${modulo} (ID: ${recordId || '-'})`
@@ -25,8 +25,8 @@ function formatAuditDetails(accion, tabla, detalles, recordId) {
     // UPDATE — triggers guardan old/new o old_record/new_record
     if (accion === 'UPDATE') {
       const newData = d?.new || d?.new_record || null
-      const nombre = newData?.product_name || newData?.numero_guia_sunagro || newData?.full_name
-        || d?.product_name || d?.numero_guia_sunagro || d?.full_name || null
+      const nombre = newData?.product_name || newData?.numero_guia_sunagro || newData?.username || newData?.full_name
+        || d?.product_name || d?.numero_guia_sunagro || d?.username || d?.full_name || null
 
       if (nombre) {
         return `Se actualizó "${nombre}" en ${modulo} (ID: ${recordId || '-'})`
@@ -85,10 +85,9 @@ function formatAuditDetails(accion, tabla, detalles, recordId) {
           return `Se registró asistencia${fecha}${alumnos}`
         }
         case 'users': {
-          const nombre = d?.full_name
-          const user = d?.username ? ` (@${d.username})` : ''
+          const nombre = d?.username || d?.full_name
           return nombre
-            ? `Se registró usuario "${nombre}"${user}`
+            ? `Se registró usuario "${nombre}"`
             : `Se registró usuario (ID: ${recordId || '-'})`
         }
         default:
@@ -170,7 +169,7 @@ function AuditLog() {
         if (userIds.length > 0) {
           const { data: usersData } = await supabase
             .from('users')
-            .select('id_user, full_name, username')
+            .select('id_user, username')
             .in('id_user', userIds)
 
           // Mapear usuarios a los logs
@@ -214,7 +213,7 @@ function AuditLog() {
     
     logs.forEach(log => {
       const timestamp = new Date(log.timestamp).toLocaleString('es-VE')
-      const user = log.users?.full_name || 'Sistema'
+      const user = log.users?.username || 'Sistema'
       const details = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id).replace(/"/g, '""')
       
       csv += `"${timestamp}","${user}","${log.action_type}","${log.table_affected || '-'}","${log.record_id || '-'}","${details}"\n`
@@ -334,7 +333,7 @@ function AuditLog() {
                     <td className="text-sm">
                       {new Date(log.timestamp).toLocaleString('es-VE')}
                     </td>
-                    <td>{log.users?.full_name || 'Sistema'}</td>
+                    <td>{log.users?.username || 'Sistema'}</td>
                     <td>
                       <span className={`badge ${
                         log.action_type === 'INSERT' ? 'badge-success' :
