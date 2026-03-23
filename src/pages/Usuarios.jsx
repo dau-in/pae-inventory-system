@@ -296,7 +296,7 @@ function Usuarios() {
     }
   }
 
-  if (loading) return <GlobalLoader text="Cargando usuarios..." />
+  if (loading) return <GlobalLoader text="Consultando la base de datos..." />
 
   // Solo Director (id_rol=1) o Desarrollador (id_rol=4) puede acceder
   if (userRole !== null && userRole !== 1 && userRole !== 4) {

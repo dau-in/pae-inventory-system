@@ -157,7 +157,7 @@ function DatosPlantel() {
     }
   }
 
-  if (loading) return <GlobalLoader text="Cargando datos del plantel..." />
+  if (loading) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">

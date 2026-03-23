@@ -291,7 +291,7 @@ function AuditLog() {
       </div>
 
       {/* Tabla de logs */}
-      <div ref={tableTopRef} className="card flex flex-col min-h-[500px]">
+      <div ref={tableTopRef} className="card flex flex-col min-h-[500px] min-w-0">
         <div className="flex-between mb-4">
           <h3 className="font-semibold">Registros de auditoría</h3>
           <span className="text-sm text-secondary">
@@ -302,7 +302,7 @@ function AuditLog() {
         </div>
 
         {loading ? (
-          <GlobalLoader text="Cargando auditoría..." />
+          <GlobalLoader text="Consultando la base de datos..." />
         ) : logs.length === 0 ? (
           <div className="empty-state">
             <p>No hay registros de auditoría</p>

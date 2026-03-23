@@ -123,7 +123,7 @@ function Asistencia() {
     setShowForm(false)
   }
 
-  if (loading && asistencias.length === 0) return <GlobalLoader text="Cargando asistencias..." />
+  if (loading && asistencias.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div>

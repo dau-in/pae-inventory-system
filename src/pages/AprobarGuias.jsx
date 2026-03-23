@@ -147,7 +147,7 @@ function AprobarGuias() {
     }
   }
 
-  if (loading && guiasPendientes.length === 0) return <GlobalLoader text="Cargando guías pendientes..." />
+  if (loading && guiasPendientes.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
   // Verificar permisos - solo Director o Desarrollador
   if (userRole !== null && userRole !== 1 && userRole !== 4) {

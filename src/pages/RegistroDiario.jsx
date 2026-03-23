@@ -169,7 +169,7 @@ function RegistroDiario() {
     setShowForm(false)
   }
 
-  if (loading && registros.length === 0) return <GlobalLoader text="Cargando registros..." />
+  if (loading && registros.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div>
@@ -366,7 +366,7 @@ function RegistroDiario() {
                       <tr>
                         <td colSpan="6" style={{ padding: '0.5rem 1rem', background: '#f8fafc' }}>
                           {!detallesRegistro[registro.id_registro] ? (
-                            <p className="text-sm text-secondary flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando detalles...</p>
+                            <p className="text-sm text-secondary flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Consultando la base de datos...</p>
                           ) : detallesRegistro[registro.id_registro].length === 0 ? (
                             <p className="text-sm text-secondary">Sin detalles de rubros</p>
                           ) : (

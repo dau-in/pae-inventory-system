@@ -3,7 +3,7 @@ function Loading() {
     <div className="flex-center" style={{ height: '100vh' }}>
       <div className="text-center">
         <div className="spinner" style={{ margin: '0 auto' }}></div>
-        <p className="mt-4 text-secondary">Cargando...</p>
+        <p className="mt-4 text-secondary">Consultando la base de datos...</p>
       </div>
     </div>
   )

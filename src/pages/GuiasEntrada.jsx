@@ -293,7 +293,7 @@ function GuiasEntrada() {
     )
   }
 
-  if (loading) return <GlobalLoader text="Cargando guías..." />
+  if (loading) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div style={{ padding: '2rem' }}>

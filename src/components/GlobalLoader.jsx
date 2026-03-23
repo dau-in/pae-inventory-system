@@ -1,6 +1,6 @@
 import { Loader2 } from 'lucide-react'
 
-export default function GlobalLoader({ text = "Cargando..." }) {
+export default function GlobalLoader({ text = "Consultando la base de datos..." }) {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center">

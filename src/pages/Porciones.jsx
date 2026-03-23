@@ -168,7 +168,7 @@ function Porciones() {
     setShowForm(false)
   }
 
-  if (loading && porciones.length === 0) return <GlobalLoader text="Cargando porciones..." />
+  if (loading && porciones.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
   // Productos que ya tienen porción configurada
   const productsWithPortion = porciones.map(p => p.id_product)

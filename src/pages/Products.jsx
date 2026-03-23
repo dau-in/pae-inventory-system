@@ -245,7 +245,7 @@ function Products() {
   )
   const sortedProducts = [...filteredProducts].sort((a, b) => (b.stock ?? 0) - (a.stock ?? 0))
 
-  if (loading && products.length === 0) return <GlobalLoader text="Cargando inventario..." />
+  if (loading && products.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div>
@@ -389,7 +389,7 @@ function Products() {
       )}
 
       {/* Tabla de rubros */}
-      <div key={activeTab} className="card" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+      <div key={activeTab} className="card min-w-0" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
         <div className="overflow-x-auto">
           {sortedProducts.length === 0 ? (
             <div className="empty-state">

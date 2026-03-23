@@ -260,7 +260,7 @@ function MenuDiario() {
     setShowForm(false)
   }
 
-  if (loading && menus.length === 0) return <GlobalLoader text="Cargando menús..." />
+  if (loading && menus.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div>

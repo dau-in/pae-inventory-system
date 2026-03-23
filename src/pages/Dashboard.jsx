@@ -92,7 +92,7 @@ function Dashboard() {
     }
   }
 
-  if (loading) return <GlobalLoader text="Cargando dashboard..." />
+  if (loading) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
     <div>
