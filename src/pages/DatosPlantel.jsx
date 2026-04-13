@@ -160,13 +160,133 @@ function DatosPlantel() {
   if (loading) return <GlobalLoader text="Consultando la base de datos..." />
 
   return (
+  <>
     <div className="max-w-2xl mx-auto py-8 px-4">
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-        {/* Header */}
         <div className="bg-pae-peach-light px-6 py-8 text-center border-b border-orange-100">
-          {editing ? (
-            /* --- Modo Edición: Logo upload --- */
-            <div className="mb-4">
+          {/* Logo (siempre lectura, edición en modal) */}
+          <div className="mb-4">
+            {institucion?.logo_url ? (
+              <img
+                src={institucion.logo_url}
+                alt="Logo institucional"
+                className="w-32 h-32 rounded-2xl object-cover mx-auto shadow-sm"
+              />
+            ) : (
+              <div className="w-32 h-32 rounded-2xl bg-white border border-gray-200 flex items-center justify-center mx-auto shadow-sm">
+                <Building2 className="w-12 h-12 text-slate-300" />
+              </div>
+            )}
+          </div>
+
+          <h1 className="text-2xl font-heading font-bold text-slate-800">
+            {institucion?.nombre || 'Sin nombre'}
+          </h1>
+        </div>
+
+        {/* Body: Datos */}
+        <div className="px-6 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* RIF */}
+            <div className="flex items-start gap-3">
+              <Hash className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">RIF</p>
+                <p className="text-slate-800 font-medium">{institucion?.rif || '—'}</p>
+              </div>
+            </div>
+
+            {/* Código DEA */}
+            <div className="flex items-start gap-3">
+              <Hash className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Código DEA</p>
+                <p className="text-slate-800 font-medium">{institucion?.codigo_dea || '—'}</p>
+              </div>
+            </div>
+
+            {/* Dirección */}
+            <div className="flex items-start gap-3 sm:col-span-2">
+              <MapPin className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Dirección</p>
+                <p className="text-slate-800 font-medium">{institucion?.direccion || '—'}</p>
+              </div>
+            </div>
+
+            {/* Director */}
+            <div className="flex items-start gap-3 sm:col-span-2">
+              <User className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Director(a) Actual</p>
+                <p className="text-slate-800 font-medium">{institucion?.director_actual || '—'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Botón Editar (solo Dev, solo en lectura) */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            {!editing && userRole === 4 && (
+              <div className="flex justify-end">
+                <button
+                  onClick={startEdit}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  <Pencil className="w-4 h-4" /> Editar Datos
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer: última actualización */}
+        {institucion?.updated_at && (
+          <div className="px-6 py-3 bg-slate-50 border-t border-gray-100 text-center">
+            <p className="text-xs text-slate-400">
+              Última actualización: {new Date(institucion.updated_at).toLocaleDateString('es-VE', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+              })}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* ═══ MODAL: Editar Datos del Plantel ═══ */}
+    {editing && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) cancelEdit() }}
+      >
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* — Encabezado del modal — */}
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '1rem 1.5rem',
+              background: '#FFF7ED',
+              borderBottom: '1px solid #fed7aa'
+            }}
+          >
+            <h3 className="flex items-center gap-2 text-lg font-bold" style={{ color: '#9a3412', margin: 0 }}>
+              <Building2 className="w-5 h-5" /> Editar Datos del Plantel
+            </h3>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: '#9a3412' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#ffedd5'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* — Cuerpo scrollable — */}
+          <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+            {/* Logo upload */}
+            <div className="mb-4 text-center">
               <label className="cursor-pointer group block mx-auto w-32 h-32 relative">
                 {logoPreview || institucion?.logo_url ? (
                   <img
@@ -190,171 +310,105 @@ function DatosPlantel() {
                 />
               </label>
               <p className="text-xs text-slate-500 mt-2">Click para cambiar el logo</p>
-              <p className="text-xs text-slate-400 mt-1">Formato PNG o JPG. Máximo 2 MB. Resolución máxima: 1024 × 1024 px.</p>
+              <p className="text-xs text-slate-400 mt-1">Formato PNG o JPG. Máximo 2 MB. Resolación máxima: 1024 × 1024 px.</p>
             </div>
-          ) : (
-            /* --- Modo Lectura: Logo --- */
-            <div className="mb-4">
-              {institucion?.logo_url ? (
-                <img
-                  src={institucion.logo_url}
-                  alt="Logo institucional"
-                  className="w-32 h-32 rounded-2xl object-cover mx-auto shadow-sm"
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group md:col-span-2">
+                <label>Nombre de la Institución <span className="text-red-500 ml-1">●</span></label>
+                <input
+                  className="w-full"
+                  type="text"
+                  name="nombre"
+                  value={formData.nombre}
+                  onChange={handleChange}
+                  placeholder="Nombre de la Institución"
                 />
-              ) : (
-                <div className="w-32 h-32 rounded-2xl bg-white border border-gray-200 flex items-center justify-center mx-auto shadow-sm">
-                  <Building2 className="w-12 h-12 text-slate-300" />
-                </div>
-              )}
-            </div>
-          )}
-
-          {editing ? (
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              placeholder="Nombre de la Institución"
-              className="text-2xl font-heading font-bold text-center w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-pae-peach focus:border-transparent"
-            />
-          ) : (
-            <h1 className="text-2xl font-heading font-bold text-slate-800">
-              {institucion?.nombre || 'Sin nombre'}
-            </h1>
-          )}
-        </div>
-
-        {/* Body: Datos */}
-        <div className="px-6 py-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* RIF */}
-            <div className="flex items-start gap-3">
-              <Hash className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">RIF</p>
-                {editing ? (
-                  <input
-                    type="text"
-                    name="rif"
-                    value={formData.rif}
-                    onChange={handleChange}
-                    placeholder="J-XXXXXXXX-X"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-pae-peach focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-slate-800 font-medium">{institucion?.rif || '—'}</p>
-                )}
+              </div>
+              <div className="form-group">
+                <label>RIF</label>
+                <input
+                  className="w-full"
+                  type="text"
+                  name="rif"
+                  value={formData.rif}
+                  onChange={handleChange}
+                  placeholder="J-XXXXXXXX-X"
+                />
+              </div>
+              <div className="form-group">
+                <label>Código DEA</label>
+                <input
+                  className="w-full"
+                  type="text"
+                  name="codigo_dea"
+                  value={formData.codigo_dea}
+                  onChange={handleChange}
+                  placeholder="Código DEA"
+                />
+              </div>
+              <div className="form-group md:col-span-2">
+                <label>Dirección</label>
+                <textarea
+                  className="w-full"
+                  name="direccion"
+                  value={formData.direccion}
+                  onChange={handleChange}
+                  placeholder="Dirección completa del plantel"
+                  rows={2}
+                />
+              </div>
+              <div className="form-group md:col-span-2">
+                <label>Director(a) Actual</label>
+                <input
+                  className="w-full"
+                  type="text"
+                  name="director_actual"
+                  value={formData.director_actual}
+                  onChange={handleChange}
+                  placeholder="Nombre del Director(a)"
+                />
               </div>
             </div>
 
-            {/* Código DEA */}
-            <div className="flex items-start gap-3">
-              <Hash className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Código DEA</p>
-                {editing ? (
-                  <input
-                    type="text"
-                    name="codigo_dea"
-                    value={formData.codigo_dea}
-                    onChange={handleChange}
-                    placeholder="Código DEA"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-pae-peach focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-slate-800 font-medium">{institucion?.codigo_dea || '—'}</p>
-                )}
-              </div>
+            {/* — Pie del modal — */}
+            <div
+              className="flex gap-3 justify-end"
+              style={{ paddingTop: '1rem', borderTop: '1px solid #e5e7eb', marginTop: '1rem' }}
+            >
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors"
+                style={{ background: '#f3f4f6', color: '#374151' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseLeave={e => e.currentTarget.style.background = '#f3f4f6'}
+              >
+                <X className="w-4 h-4" /> Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors border"
+                style={{
+                  background: saving ? '#cbd5e1' : '#FFF7ED',
+                  color: saving ? '#94a3b8' : '#9a3412',
+                  borderColor: saving ? '#cbd5e1' : '#fed7aa',
+                  cursor: saving ? 'not-allowed' : 'pointer'
+                }}
+                onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#FFD9A8' } }}
+                onMouseLeave={e => { if (!saving) { e.currentTarget.style.background = '#FFF7ED' } }}
+              >
+                <Save className="w-4 h-4" /> {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
             </div>
-
-            {/* Dirección */}
-            <div className="flex items-start gap-3 sm:col-span-2">
-              <MapPin className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Dirección</p>
-                {editing ? (
-                  <textarea
-                    name="direccion"
-                    value={formData.direccion}
-                    onChange={handleChange}
-                    placeholder="Dirección completa del plantel"
-                    rows={2}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mt-1 resize-none focus:outline-none focus:ring-2 focus:ring-pae-peach focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-slate-800 font-medium">{institucion?.direccion || '—'}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Director */}
-            <div className="flex items-start gap-3 sm:col-span-2">
-              <User className="w-5 h-5 text-pae-peach-dark mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Director(a) Actual</p>
-                {editing ? (
-                  <input
-                    type="text"
-                    name="director_actual"
-                    value={formData.director_actual}
-                    onChange={handleChange}
-                    placeholder="Nombre del Director(a)"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-pae-peach focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-slate-800 font-medium">{institucion?.director_actual || '—'}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Botones */}
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            {editing ? (
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={cancelEdit}
-                  disabled={saving}
-                  className="btn btn-secondary flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" /> Cancelar
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="btn btn-primary flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" /> {saving ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
-            ) : (
-              userRole === 4 && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={startEdit}
-                    className="btn btn-primary flex items-center gap-2"
-                  >
-                    <Pencil className="w-4 h-4" /> Editar Datos
-                  </button>
-                </div>
-              )
-            )}
           </div>
         </div>
-
-        {/* Footer: última actualización */}
-        {institucion?.updated_at && (
-          <div className="px-6 py-3 bg-slate-50 border-t border-gray-100 text-center">
-            <p className="text-xs text-slate-400">
-              Última actualización: {new Date(institucion.updated_at).toLocaleDateString('es-VE', {
-                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-              })}
-            </p>
-          </div>
-        )}
       </div>
-    </div>
+    )}
+  </>
   )
 }
 

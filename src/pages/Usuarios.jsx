@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, getUserData, getCurrentUser, createUserAccount, changeUserPassword } from '../supabaseClient'
 import { notifySuccess, notifyError, notifyWarning, notifyInfo, confirmDanger, confirmAction } from '../utils/notifications'
 import GlobalLoader from '../components/GlobalLoader'
-import { Lock, Plus, KeyRound, Pencil, Check, Ban } from 'lucide-react'
+import { Lock, Plus, KeyRound, Pencil, Check, Ban, X, Save } from 'lucide-react'
 
 function Usuarios() {
   const [loading, setLoading] = useState(true)
@@ -19,8 +19,8 @@ function Usuarios() {
     id_rol: 2
   })
   const [saving, setSaving] = useState(false)
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [passwordTarget, setPasswordTarget] = useState(null)
+  // Password change fields (inside edit modal)
+  const [showPasswordSection, setShowPasswordSection] = useState(false)
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' })
   const [changingPassword, setChangingPassword] = useState(false)
 
@@ -165,6 +165,8 @@ function Usuarios() {
       username: user.username,
       id_rol: user.id_rol
     })
+    setShowPasswordSection(false)
+    setPasswordData({ newPassword: '', confirmPassword: '' })
     setShowForm(true)
   }
 
@@ -240,22 +242,12 @@ function Usuarios() {
     })
     setEditingUser(null)
     setShowForm(false)
-  }
-
-  const openPasswordModal = (user) => {
-    setPasswordTarget(user)
+    setShowPasswordSection(false)
     setPasswordData({ newPassword: '', confirmPassword: '' })
-    setShowPasswordModal(true)
   }
 
-  const closePasswordModal = () => {
-    setPasswordTarget(null)
-    setPasswordData({ newPassword: '', confirmPassword: '' })
-    setShowPasswordModal(false)
-  }
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault()
+  const handlePasswordChange = async () => {
+    if (!editingUser) return
 
     if (passwordData.newPassword.length < 6) {
       notifyWarning('Contraseña muy corta', 'La contraseña debe tener al menos 6 caracteres')
@@ -269,21 +261,22 @@ function Usuarios() {
 
     const confirmed = await confirmAction(
       '¿Cambiar contraseña?',
-      `¿Está seguro de cambiar la contraseña de "${passwordTarget.username}"?`,
+      `¿Está seguro de cambiar la contraseña de "${editingUser.username}"?`,
       'Cambiar'
     )
     if (!confirmed) return
 
     setChangingPassword(true)
     try {
-      await changeUserPassword(passwordTarget.id_user, passwordData.newPassword)
+      await changeUserPassword(editingUser.id_user, passwordData.newPassword)
       notifyInfo(
         'Contraseña cambiada',
-        `<b>Nueva contraseña para ${passwordTarget.username}:</b><br><br>` +
+        `<b>Nueva contraseña para ${editingUser.username}:</b><br><br>` +
         `<code style="font-size: 1.2rem; padding: 0.5rem; background: #f1f5f9; border-radius: 4px;">${passwordData.newPassword}</code><br><br>` +
         `Comparta esta contraseña con el usuario.`
       )
-      closePasswordModal()
+      setShowPasswordSection(false)
+      setPasswordData({ newPassword: '', confirmPassword: '' })
     } catch (error) {
       console.error('Error cambiando contraseña:', error)
       if (error.message?.includes('different from the old password')) {
@@ -321,107 +314,237 @@ function Usuarios() {
     <div>
       <div className="flex-between mb-4">
         <h2 className="text-2xl font-bold">Gestión de Usuarios</h2>
-        {!showForm && (
-          <button
-            className="btn btn-primary flex items-center gap-2"
-            onClick={() => { setEditingUser(null); setShowForm(true) }}
-          >
-            <Plus className="w-4 h-4" /> Nuevo Usuario
-          </button>
-        )}
+        <button
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors"
+          style={{ background: '#FFD9A8', color: '#0f172a' }}
+          onClick={() => { setEditingUser(null); setShowForm(true) }}
+        >
+          <Plus className="w-4 h-4" /> Nuevo Usuario
+        </button>
       </div>
 
-      {/* Formulario */}
+      {/* ═══ MODAL: Crear/Editar Usuario ═══ */}
       {showForm && (
-        <div className="card mb-4">
-          <h3 className="text-lg font-semibold mb-4">
-            {editingUser ? `Editar: ${editingUser.username}` : 'Crear Nuevo Usuario'}
-          </h3>
-          <form onSubmit={editingUser ? handleUpdate : handleCreate}>
-            <div className="grid grid-2 gap-4">
-              {!editingUser && (
-                <>
-                  <div className="form-group">
-                    <label>Correo electrónico <span className="text-red-500 ml-1">●</span></label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="usuario@correo.com"
-                      required
-                      autoComplete="email"
-                    />
-                  </div>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) resetForm() }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* — Encabezado del modal — */}
+            <div
+              className="flex items-center justify-between"
+              style={{
+                padding: '1rem 1.5rem',
+                background: '#FFF7ED',
+                borderBottom: '1px solid #fed7aa'
+              }}
+            >
+              <h3 className="flex items-center gap-2 text-lg font-bold" style={{ color: '#9a3412', margin: 0 }}>
+                {editingUser ? `Editar: ${editingUser.username}` : 'Crear Nuevo Usuario'}
+              </h3>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: '#9a3412' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#ffedd5'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* — Cuerpo scrollable — */}
+            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+              <form onSubmit={editingUser ? handleUpdate : handleCreate}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {!editingUser && (
+                    <>
+                      <div className="form-group">
+                        <label>Correo electrónico <span className="text-red-500 ml-1">●</span></label>
+                        <input
+                          className="w-full"
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="usuario@correo.com"
+                          required
+                          autoComplete="email"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Contraseña <span className="text-red-500 ml-1">●</span> (mínimo 6 caracteres)</label>
+                        <input
+                          className="w-full"
+                          type="text"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          placeholder="Contraseña temporal"
+                          required
+                          minLength={6}
+                          autoComplete="new-password"
+                        />
+                        <p className="text-sm text-secondary mt-1">
+                          Se muestra en texto plano para que pueda compartirla con el usuario
+                        </p>
+                      </div>
+                    </>
+                  )}
 
                   <div className="form-group">
-                    <label>Contraseña <span className="text-red-500 ml-1">●</span> (mínimo 6 caracteres)</label>
+                    <label>Usuario <span className="text-red-500 ml-1">●</span></label>
                     <input
+                      className="w-full"
                       type="text"
-                      name="password"
-                      value={formData.password}
+                      name="username"
+                      value={formData.username}
                       onChange={handleInputChange}
-                      placeholder="Contraseña temporal"
+                      placeholder="Nombre y Apellido"
                       required
-                      minLength={6}
-                      autoComplete="new-password"
                     />
-                    <p className="text-sm text-secondary mt-1">
-                      Se muestra en texto plano para que pueda compartirla con el usuario
-                    </p>
                   </div>
-                </>
-              )}
 
-              <div className="form-group">
-                <label>Usuario <span className="text-red-500 ml-1">●</span></label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  placeholder="Nombre y Apellido"
-                  required
-                />
-              </div>
+                  <div className="form-group">
+                    <label>Rol <span className="text-red-500 ml-1">●</span></label>
+                    <select
+                      className="w-full"
+                      name="id_rol"
+                      value={formData.id_rol}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      {roles.filter(rol => {
+                        // Nunca mostrar Desarrollador
+                        if (rol.id_rol === 4) return false
+                        // Director solo ve roles 2 y 3
+                        if (userRole === 1 && rol.id_rol === 1) return false
+                        return true
+                      }).map(rol => (
+                        <option key={rol.id_rol} value={rol.id_rol}>
+                          {rol.rol_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-              <div className="form-group">
-                <label>Rol <span className="text-red-500 ml-1">●</span></label>
-                <select
-                  name="id_rol"
-                  value={formData.id_rol}
-                  onChange={handleInputChange}
-                  required
+                {/* — Sección de Cambio de Contraseña (solo en edición) — */}
+                {editingUser && canChangePassword(editingUser) && (
+                  <div style={{ marginTop: '1.25rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
+                    {!showPasswordSection ? (
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 text-sm font-semibold transition-colors"
+                        style={{ color: '#9a3412' }}
+                        onClick={() => setShowPasswordSection(true)}
+                      >
+                        <KeyRound className="w-4 h-4" /> Cambiar Contraseña
+                      </button>
+                    ) : (
+                      <div>
+                        <h4 className="flex items-center gap-2 text-sm font-bold mb-3" style={{ color: '#9a3412' }}>
+                          <KeyRound className="w-4 h-4" /> Cambiar Contraseña
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="form-group">
+                            <label>Nueva contraseña <span className="text-red-500 ml-1">●</span></label>
+                            <input
+                              className="w-full"
+                              type="text"
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                              placeholder="Nueva contraseña"
+                              minLength={6}
+                              autoComplete="new-password"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Confirmar contraseña <span className="text-red-500 ml-1">●</span></label>
+                            <input
+                              className="w-full"
+                              type="text"
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              placeholder="Repetir contraseña"
+                              minLength={6}
+                              autoComplete="new-password"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm text-white transition-colors"
+                            style={{
+                              background: changingPassword ? '#cbd5e1' : '#f97316',
+                              cursor: changingPassword ? 'not-allowed' : 'pointer'
+                            }}
+                            disabled={changingPassword}
+                            onClick={handlePasswordChange}
+                            onMouseEnter={e => { if (!changingPassword) e.currentTarget.style.background = '#ea580c' }}
+                            onMouseLeave={e => { if (!changingPassword) e.currentTarget.style.background = '#f97316' }}
+                          >
+                            <KeyRound className="w-4 h-4" /> {changingPassword ? 'Cambiando...' : 'Aplicar Contraseña'}
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors"
+                            style={{ background: '#f3f4f6', color: '#374151' }}
+                            onClick={() => { setShowPasswordSection(false); setPasswordData({ newPassword: '', confirmPassword: '' }) }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* — Pie del modal — */}
+                <div
+                  className="flex gap-3 justify-end"
+                  style={{ paddingTop: '1rem', borderTop: '1px solid #e5e7eb', marginTop: '1.25rem' }}
                 >
-                  {roles.filter(rol => {
-                    // Nunca mostrar Desarrollador
-                    if (rol.id_rol === 4) return false
-                    // Director solo ve roles 2 y 3
-                    if (userRole === 1 && rol.id_rol === 1) return false
-                    return true
-                  }).map(rol => (
-                    <option key={rol.id_rol} value={rol.id_rol}>
-                      {rol.rol_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors"
+                    style={{ background: '#f3f4f6', color: '#374151' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#e5e7eb'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#f3f4f6'}
+                  >
+                    <X className="w-4 h-4" /> Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors border"
+                    style={{
+                      background: saving ? '#cbd5e1' : '#FFF7ED',
+                      color: saving ? '#94a3b8' : '#9a3412',
+                      borderColor: saving ? '#cbd5e1' : '#fed7aa',
+                      cursor: saving ? 'not-allowed' : 'pointer'
+                    }}
+                    onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#FFD9A8' } }}
+                    onMouseLeave={e => { if (!saving) { e.currentTarget.style.background = '#FFF7ED' } }}
+                  >
+                    <Save className="w-4 h-4" /> {saving ? 'Guardando...' : editingUser ? 'Actualizar' : 'Crear Usuario'}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="flex gap-2 mt-4">
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Guardando...' : editingUser ? 'Actualizar' : 'Crear Usuario'}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                Cancelar
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       )}
 
       {/* Tabla de usuarios */}
       <div className="card">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-slate-800 flex items-center">Usuarios del Sistema <span className="ml-3 bg-[#FFD9A8] text-[#9a3412] text-xs font-bold px-2.5 py-1 rounded-full">{usuarios.length}</span></h3>
+        </div>
         <div className="overflow-x-auto">
           {usuarios.length === 0 ? (
             <div className="empty-state">
@@ -445,11 +568,11 @@ function Usuarios() {
                   <tr key={user.id_user} style={{ opacity: user.is_active === false ? 0.5 : 1 }}>
                     <td className="font-semibold">{user.username}</td>
                     <td className="text-center">
-                      <span className={`badge ${
-                        user.id_rol === 4 ? 'badge-danger' :
-                        user.id_rol === 1 ? 'badge-danger' :
-                        user.id_rol === 2 ? 'badge-success' :
-                        'badge-warning'
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        user.id_rol === 4 ? 'bg-fuchsia-100 text-fuchsia-700' :
+                        user.id_rol === 1 ? 'bg-rose-100 text-rose-700' :
+                        user.id_rol === 2 ? 'bg-amber-100 text-amber-800' :
+                        'bg-blue-100 text-blue-700'
                       }`}>
                         {user.rol?.rol_name || 'Sin rol'}
                       </span>
@@ -488,18 +611,7 @@ function Usuarios() {
                     </td>
                     <td>
                       {user.id_user === currentUserId ? (
-                        <div className="flex gap-2">
-                          <span className="text-sm text-secondary" style={{ alignSelf: 'center' }}>(Tu cuenta)</span>
-                          {canChangePassword(user) && (
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              onClick={() => openPasswordModal(user)}
-                              title="Cambiar contraseña"
-                            >
-                              <KeyRound className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-sm text-secondary">(Tu cuenta)</span>
                       ) : (
                         <div className="flex gap-2">
                           {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
@@ -508,15 +620,6 @@ function Usuarios() {
                               onClick={() => handleEdit(user)}
                             >
                               <Pencil className="w-4 h-4" /> Editar
-                            </button>
-                          )}
-                          {canChangePassword(user) && (
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              onClick={() => openPasswordModal(user)}
-                              title="Cambiar contraseña"
-                            >
-                              <KeyRound className="w-4 h-4" />
                             </button>
                           )}
                           {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
@@ -542,63 +645,6 @@ function Usuarios() {
           )}
         </div>
       </div>
-
-      {/* Modal de cambio de contraseña */}
-      {showPasswordModal && passwordTarget && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div className="card" style={{ width: '100%', maxWidth: '450px', margin: '1rem' }}>
-            <h3 className="text-lg font-semibold mb-4">
-              <span className="flex items-center gap-2"><KeyRound className="w-5 h-5" /> Cambiar Contraseña</span>
-            </h3>
-            <p className="text-sm text-secondary mb-4">
-              Usuario: <strong>{passwordTarget.username}</strong>
-            </p>
-            <form onSubmit={handlePasswordChange}>
-              <div className="form-group">
-                <label>Nueva contraseña <span className="text-red-500 ml-1">●</span> (mínimo 6 caracteres)</label>
-                <input
-                  type="text"
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                  placeholder="Nueva contraseña"
-                  required
-                  minLength={6}
-                  autoFocus
-                  autoComplete="new-password"
-                />
-                <p className="text-sm text-secondary mt-1">
-                  Se muestra en texto plano para que pueda compartirla con el usuario
-                </p>
-              </div>
-              <div className="form-group">
-                <label>Confirmar contraseña <span className="text-red-500 ml-1">●</span></label>
-                <input
-                  type="text"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  placeholder="Repetir contraseña"
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button type="submit" className="btn btn-primary" disabled={changingPassword}>
-                  {changingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
-                </button>
-                <button type="button" className="btn btn-secondary" onClick={closePasswordModal}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { signOut, getUserData, supabase } from '../supabaseClient'
-import { LayoutDashboard, Package, ClipboardList, CheckSquare, Utensils, Scale, BarChart3, Search, User, Github, LogOut, Menu, X, Building2 } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, CheckSquare, Utensils, Scale, Search, User, Github, LogOut, Menu, X, Building2 } from 'lucide-react'
 import './Layout.css'
 
 function Layout() {
@@ -106,9 +106,6 @@ function Layout() {
           </NavLink>
           <NavLink to="/porciones" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Scale className="w-5 h-5 mr-3" /> Porciones
-          </NavLink>
-          <NavLink to="/reportes" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
-            <BarChart3 className="w-5 h-5 mr-3" /> Reportes
           </NavLink>
           <NavLink to="/datos-plantel" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Building2 className="w-5 h-5 mr-3" /> Datos del Plantel

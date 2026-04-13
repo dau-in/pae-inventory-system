@@ -9,7 +9,6 @@ import Products from './pages/Products'
 import GuiasEntrada from './pages/GuiasEntrada'
 import RegistroDiario from './pages/RegistroDiario'
 import Porciones from './pages/Porciones'
-import Reportes from './pages/Reportes'
 import AuditLog from './pages/AuditLog'
 import AprobarGuias from './pages/AprobarGuias'
 import Usuarios from './pages/Usuarios'
@@ -71,7 +70,6 @@ function App() {
             <Route path="/guias-entrada" element={<GuiasEntrada />} />
             <Route path="/registro-diario" element={<RegistroDiario />} />
             <Route path="/porciones" element={<Porciones />} />
-            <Route path="/reportes" element={<Reportes />} />
             <Route path="/auditoria" element={<AuditLog />} />
             <Route path="/aprobar-guias" element={<AprobarGuias />} />
             <Route path="/usuarios" element={<Usuarios />} />

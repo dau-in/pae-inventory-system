@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase, getLocalDate } from '../supabaseClient'
+import { supabase, getLocalDate, getUserData } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifyError } from '../utils/notifications'
-import { Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { exportPDF } from '../utils/pdfGenerator'
+import { FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 
 function formatAuditDetails(accion, tabla, detalles, recordId) {
   try {
@@ -110,7 +111,8 @@ function AuditLog() {
   const [logs, setLogs] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
-  const tableTopRef = useRef(null)
+  const [userName, setUserName] = useState('')
+  const [exporting, setExporting] = useState(false)
   const [filters, setFilters] = useState({
     action_type: '',
     table_affected: '',
@@ -118,15 +120,22 @@ function AuditLog() {
     hasta: ''
   })
 
-  useEffect(() => {
-    loadLogs()
-  }, [filters, currentPage])
+  const isInitialMount = useRef(true)
+  const tableRef = useRef(null)
 
   useEffect(() => {
-    if (tableTopRef.current) {
-      tableTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    loadLogs()
+    getUserData().then(data => setUserName(data?.username || ''))
+  }, [filters, currentPage])
+
+  // Scroll to table header on page change (skip initial mount)
+  useEffect(() => {
+    if (!isInitialMount.current && tableRef.current) {
+      tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [logs])
+    isInitialMount.current = false
+  }, [currentPage])
+
 
   const loadLogs = async () => {
     setLoading(true)
@@ -208,22 +217,36 @@ function AuditLog() {
     }))
   }
 
-  const exportToCSV = () => {
-    let csv = 'Fecha y hora,Usuario,Acción,Tabla,ID Registro,Detalles\n'
-    
-    logs.forEach(log => {
-      const timestamp = new Date(log.timestamp).toLocaleString('es-VE')
-      const user = log.users?.username || 'Sistema'
-      const details = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id).replace(/"/g, '""')
-      
-      csv += `"${timestamp}","${user}","${log.action_type}","${log.table_affected || '-'}","${log.record_id || '-'}","${details}"\n`
-    })
-
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `auditoria_${getLocalDate()}.csv`
-    link.click()
+  const handleExportPDF = async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const columns = [
+        { header: 'Fecha y Hora', dataKey: 'timestamp' },
+        { header: 'Usuario', dataKey: 'usuario' },
+        { header: 'Acción', dataKey: 'accion' },
+        { header: 'Tabla', dataKey: 'tabla' },
+        { header: 'Detalles', dataKey: 'detalles' },
+      ]
+      const rows = logs.map(log => ({
+        timestamp: new Date(log.timestamp).toLocaleString('es-VE'),
+        usuario: log.users?.username || 'Sistema',
+        accion: log.action_type || '-',
+        tabla: log.table_affected || '-',
+        detalles: formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id),
+      }))
+      await exportPDF({
+        title: 'REPORTE DE AUDITORÍA DEL SISTEMA',
+        columns,
+        data: rows,
+        userName,
+      })
+    } catch (err) {
+      console.error('Error exportando PDF:', err)
+      notifyError('Error', 'No se pudo generar el reporte PDF')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
@@ -236,8 +259,14 @@ function AuditLog() {
           <h2 className="text-2xl font-bold">Auditoría del Sistema</h2>
           <p className="text-secondary">Registro completo de todas las acciones</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2" onClick={exportToCSV}>
-          <Download className="w-4 h-4" /> Exportar
+        <button
+          onClick={handleExportPDF}
+          disabled={exporting || logs.length === 0}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors"
+          style={{ background: '#FFF7ED', color: '#9a3412', border: '1px solid #fed7aa' }}
+        >
+          <FileText className="w-4 h-4" />
+          {exporting ? 'Generando...' : 'Generar Reporte'}
         </button>
       </div>
 
@@ -291,73 +320,90 @@ function AuditLog() {
       </div>
 
       {/* Tabla de logs */}
-      <div ref={tableTopRef} className="card flex flex-col min-h-[500px] min-w-0">
-        <div className="flex-between mb-4">
-          <h3 className="font-semibold">Registros de auditoría</h3>
-          <span className="text-sm text-secondary">
+      <div className="card flex flex-col min-w-0">
+        <div ref={tableRef} className="flex justify-between items-center mb-4 scroll-mt-4">
+          <h3 className="text-lg font-bold text-slate-800 flex items-center">Registros de auditoría <span className="ml-3 bg-[#FFD9A8] text-[#9a3412] text-xs font-bold px-2.5 py-1 rounded-full">{totalCount}</span></h3>
+          <span className="text-sm font-medium text-slate-500">
             {totalCount > 0
-              ? `${indexOfFirstItem + 1}–${Math.min(indexOfFirstItem + logs.length, totalCount)} de ${totalCount}`
-              : 'Total: 0'}
+              ? `Mostrando ${indexOfFirstItem + 1} - ${Math.min(indexOfFirstItem + logs.length, totalCount)}`
+              : ''}
           </span>
         </div>
 
-        {loading ? (
-          <GlobalLoader text="Consultando la base de datos..." />
-        ) : logs.length === 0 ? (
-          <div className="empty-state">
-            <p>No hay registros de auditoría</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha y hora</th>
-                  <th>Usuario</th>
-                  <th>Acción</th>
-                  <th>Tabla</th>
-                  <th>ID</th>
-                  <th>Detalles</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => {
-                  let detalleTexto
-                  try {
-                    detalleTexto = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id)
-                  } catch {
-                    detalleTexto = `Operación en ${log.table_affected || 'sistema'} (ID: ${log.record_id || '-'})`
-                  }
-                  return (
-                  <tr key={log.id_log}>
-                    <td className="text-sm">
-                      {new Date(log.timestamp).toLocaleString('es-VE')}
-                    </td>
-                    <td>{log.users?.username || 'Sistema'}</td>
-                    <td>
-                      <span className={`badge ${
-                        log.action_type === 'INSERT' ? 'badge-success' :
-                        log.action_type === 'UPDATE' ? 'badge-warning' :
-                        'badge-danger'
-                      }`}>
-                        {log.action_type}
-                      </span>
-                    </td>
-                    <td className="text-sm">{log.table_affected || '-'}</td>
-                    <td className="text-sm">{log.record_id || '-'}</td>
-                    <td className="text-sm truncate max-w-[300px]" title={detalleTexto}>
-                      {detalleTexto}
-                    </td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* Contenedor relativo para overlay stale-while-revalidate */}
+        <div className="relative min-h-[500px]">
 
-        {/* Controles de paginación — anclados al fondo */}
-        {!loading && totalCount > ITEMS_PER_PAGE && (
+          {/* Overlay de carga — NO borra la tabla */}
+          {loading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm rounded-lg">
+              <div className="flex gap-2 mb-2">
+                <div className="w-3 h-3 bg-orange-200 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-orange-300 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-3 h-3 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+              <span className="text-sm text-slate-500 font-medium">Consultando la base de datos...</span>
+            </div>
+          )}
+
+          {/* La tabla SIEMPRE se renderiza */}
+          <div className={`transition-opacity duration-300 ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+            {logs.length === 0 && !loading ? (
+              <div className="empty-state">
+                <p>No hay registros de auditoría</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fecha y hora</th>
+                      <th>Usuario</th>
+                      <th>Acción</th>
+                      <th>Tabla</th>
+                      <th>ID</th>
+                      <th>Detalles</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => {
+                      let detalleTexto
+                      try {
+                        detalleTexto = formatAuditDetails(log.action_type, log.table_affected, log.details, log.record_id)
+                      } catch {
+                        detalleTexto = `Operación en ${log.table_affected || 'sistema'} (ID: ${log.record_id || '-'})`
+                      }
+                      return (
+                      <tr key={log.id_log}>
+                        <td className="text-sm">
+                          {new Date(log.timestamp).toLocaleString('es-VE')}
+                        </td>
+                        <td>{log.users?.username || 'Sistema'}</td>
+                        <td>
+                          <span className={`badge ${
+                            log.action_type === 'INSERT' ? 'badge-success' :
+                            log.action_type === 'UPDATE' ? 'badge-warning' :
+                            'badge-danger'
+                          }`}>
+                            {log.action_type}
+                          </span>
+                        </td>
+                        <td className="text-sm">{log.table_affected || '-'}</td>
+                        <td className="text-sm">{log.record_id || '-'}</td>
+                        <td className="text-sm truncate max-w-[300px]" title={detalleTexto}>
+                          {detalleTexto}
+                        </td>
+                      </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Controles de paginación */}
+        {totalCount > 0 && (
           <div className="flex items-center justify-center gap-4 pt-6 pb-4 mt-auto">
             <button
               className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
