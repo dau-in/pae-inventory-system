@@ -120,7 +120,7 @@ function AuditLog() {
     hasta: ''
   })
 
-  const isInitialMount = useRef(true)
+  const prevPage = useRef(currentPage)
   const tableRef = useRef(null)
 
   useEffect(() => {
@@ -128,13 +128,14 @@ function AuditLog() {
     getUserData().then(data => setUserName(data?.username || ''))
   }, [filters, currentPage])
 
-  // Scroll to table header on page change (skip initial mount)
+  // Scroll to table header on page change (skip initial load)
   useEffect(() => {
-    if (!isInitialMount.current && tableRef.current) {
+    if (prevPage.current === currentPage) return
+    if (!loading && tableRef.current) {
       tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      prevPage.current = currentPage
     }
-    isInitialMount.current = false
-  }, [currentPage])
+  }, [currentPage, loading])
 
 
   const loadLogs = async () => {

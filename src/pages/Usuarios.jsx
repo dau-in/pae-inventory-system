@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, getUserData, getCurrentUser, createUserAccount, changeUserPassword } from '../supabaseClient'
 import { notifySuccess, notifyError, notifyWarning, notifyInfo, confirmDanger, confirmAction } from '../utils/notifications'
 import GlobalLoader from '../components/GlobalLoader'
-import { Lock, Plus, KeyRound, Pencil, Check, Ban, X, Save } from 'lucide-react'
+import { Lock, Plus, KeyRound, Pencil, Check, Ban, X, Save, ChevronLeft, ChevronRight, Users, UserX } from 'lucide-react'
 
 function Usuarios() {
   const [loading, setLoading] = useState(true)
@@ -10,6 +10,7 @@ function Usuarios() {
   const [roles, setRoles] = useState([])
   const [userRole, setUserRole] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
+  const [currentUserName, setCurrentUserName] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [formData, setFormData] = useState({
@@ -19,10 +20,16 @@ function Usuarios() {
     id_rol: 2
   })
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('activos')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   // Password change fields (inside edit modal)
   const [showPasswordSection, setShowPasswordSection] = useState(false)
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' })
   const [changingPassword, setChangingPassword] = useState(false)
+
+  const prevPage = useRef(currentPage)
+  const tableRef = useRef(null)
 
   useEffect(() => {
     checkPermissions()
@@ -37,6 +44,21 @@ function Usuarios() {
     }, 60 * 1000)
     return () => clearInterval(interval)
   }, [])
+
+  // Reset page when switching tabs
+  useEffect(() => {
+    setCurrentPage(1)
+    prevPage.current = 1
+  }, [activeTab])
+
+  // Scroll to table header on page change (skip initial load)
+  useEffect(() => {
+    if (prevPage.current === currentPage) return
+    if (!loading && tableRef.current) {
+      tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      prevPage.current = currentPage
+    }
+  }, [currentPage, loading])
 
   const isUserOnline = (lastSeen) => {
     if (!lastSeen) return false
@@ -74,6 +96,7 @@ function Usuarios() {
     const data = await getUserData()
     setUserRole(data?.id_rol)
     setCurrentUserId(data?.id_user)
+    setCurrentUserName(data?.username || '')
   }
 
   const loadUsuarios = async () => {
@@ -144,17 +167,13 @@ function Usuarios() {
   }
 
   const handleEdit = (user) => {
-    if (user.id_user === currentUserId) {
-      notifyWarning('Acción no permitida', 'No puede editar su propia cuenta desde aquí')
-      return
-    }
-    // Nadie puede editar a un Desarrollador
-    if (user.id_rol === 4) {
+    // Nadie puede editar a un Desarrollador (excepto él mismo)
+    if (user.id_rol === 4 && user.id_user !== currentUserId) {
       notifyWarning('Acción no permitida', 'No puede modificar la cuenta de un Desarrollador')
       return
     }
     // Director no puede editar a otro Director
-    if (userRole === 1 && user.id_rol === 1) {
+    if (userRole === 1 && user.id_rol === 1 && user.id_user !== currentUserId) {
       notifyWarning('Acción no permitida', 'No puede modificar a otro Director')
       return
     }
@@ -221,7 +240,11 @@ function Usuarios() {
     try {
       const { error } = await supabase
         .from('users')
-        .update({ is_active: newStatus })
+        .update({
+          is_active: newStatus,
+          disabled_at: newStatus ? null : new Date().toISOString(),
+          disabled_by: newStatus ? null : currentUserName
+        })
         .eq('id_user', user.id_user)
 
       if (error) throw error
@@ -415,9 +438,15 @@ function Usuarios() {
                       value={formData.id_rol}
                       onChange={handleInputChange}
                       required
+                      disabled={editingUser?.id_user === currentUserId}
+                      style={editingUser?.id_user === currentUserId ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                     >
                       {roles.filter(rol => {
-                        // Nunca mostrar Desarrollador
+                        // Si estoy editando MI propia cuenta, solo mostrar MI rol actual
+                        if (editingUser?.id_user === currentUserId) {
+                          return rol.id_rol === editingUser.id_rol
+                        }
+                        // Nunca mostrar Desarrollador al editar a otros
                         if (rol.id_rol === 4) return false
                         // Director solo ve roles 2 y 3
                         if (userRole === 1 && rol.id_rol === 1) return false
@@ -477,15 +506,17 @@ function Usuarios() {
                         <div className="flex gap-2 mt-2">
                           <button
                             type="button"
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm text-white transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors border"
                             style={{
-                              background: changingPassword ? '#cbd5e1' : '#f97316',
+                              background: changingPassword ? '#f1f5f9' : '#FFF7ED',
+                              color: changingPassword ? '#94a3b8' : '#9a3412',
+                              borderColor: changingPassword ? '#e2e8f0' : '#fed7aa',
                               cursor: changingPassword ? 'not-allowed' : 'pointer'
                             }}
                             disabled={changingPassword}
                             onClick={handlePasswordChange}
-                            onMouseEnter={e => { if (!changingPassword) e.currentTarget.style.background = '#ea580c' }}
-                            onMouseLeave={e => { if (!changingPassword) e.currentTarget.style.background = '#f97316' }}
+                            onMouseEnter={e => { if (!changingPassword) e.currentTarget.style.background = '#FFD9A8' }}
+                            onMouseLeave={e => { if (!changingPassword) e.currentTarget.style.background = '#FFF7ED' }}
                           >
                             <KeyRound className="w-4 h-4" /> {changingPassword ? 'Cambiando...' : 'Aplicar Contraseña'}
                           </button>
@@ -540,32 +571,102 @@ function Usuarios() {
         </div>
       )}
 
+      {/* Tabs — Pill Design */}
+      <div className="flex gap-2 p-1 bg-slate-100/50 rounded-2xl w-fit mb-6">
+        <button
+          onClick={() => setActiveTab('activos')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            activeTab === 'activos'
+              ? 'bg-white shadow-sm text-orange-600 border border-orange-100/50'
+              : 'text-slate-500 hover:bg-white/40'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          Activos
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+            activeTab === 'activos' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200/60 text-gray-500'
+          }`}>{usuarios.filter(u => u.is_active !== false).length}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('deshabilitados')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            activeTab === 'deshabilitados'
+              ? 'bg-white shadow-sm text-orange-600 border border-orange-100/50'
+              : 'text-slate-500 hover:bg-white/40'
+          }`}
+        >
+          <UserX className="w-4 h-4" />
+          Deshabilitados
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+            activeTab === 'deshabilitados' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200/60 text-gray-500'
+          }`}>{usuarios.filter(u => u.is_active === false).length}</span>
+        </button>
+      </div>
+
       {/* Tabla de usuarios */}
+      {(() => {
+        const filteredUsers = activeTab === 'activos'
+          ? usuarios.filter(u => u.is_active !== false)
+          : usuarios.filter(u => u.is_active === false)
+        const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
+        const safePage = Math.min(currentPage, Math.max(totalPages, 1))
+        const indexOfLastItem = safePage * itemsPerPage
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage
+        const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem)
+
+        return (
       <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center">Usuarios del Sistema <span className="ml-3 bg-[#FFD9A8] text-[#9a3412] text-xs font-bold px-2.5 py-1 rounded-full">{usuarios.length}</span></h3>
+        <div ref={tableRef} className="flex justify-between items-center mb-4 scroll-mt-4">
+          {filteredUsers.length > 0 ? (
+            <span className="text-sm font-medium text-slate-500">
+              Mostrando {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredUsers.length)}
+            </span>
+          ) : <span />}
         </div>
-        <div className="overflow-x-auto">
-          {usuarios.length === 0 ? (
-            <div className="empty-state">
-              <p>No hay usuarios registrados</p>
+
+        <div className="relative min-h-[400px]">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm rounded-lg">
+              <div className="flex gap-2 mb-2">
+                <div className="w-3 h-3 bg-orange-200 rounded-full animate-bounce"></div>
+                <div className="w-3 h-3 bg-orange-300 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-3 h-3 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+              <span className="text-sm text-slate-500 font-medium">Consultando la base de datos...</span>
             </div>
-          ) : (
+          )}
+
+          <div className={`transition-opacity duration-300 ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+        {filteredUsers.length === 0 && !loading ? (
+          <div className="empty-state">
+            <p>{activeTab === 'activos' ? 'No hay usuarios activos' : 'No hay usuarios deshabilitados'}</p>
+          </div>
+        ) : (
+        <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr>
                   <th>Usuario</th>
                   <th className="text-center">Rol</th>
                   <th>Estado</th>
-                  <th>Conexión</th>
-                  <th>Última IP</th>
+                  {activeTab === 'activos' ? (
+                    <>
+                      <th>Conexión</th>
+                      <th>Última IP</th>
+                    </>
+                  ) : (
+                    <>
+                      <th>Fecha de Baja</th>
+                      <th>Responsable</th>
+                    </>
+                  )}
                   <th>Creado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map(user => (
-                  <tr key={user.id_user} style={{ opacity: user.is_active === false ? 0.5 : 1 }}>
+                {currentItems.map(user => (
+                  <tr key={user.id_user}>
                     <td className="font-semibold">{user.username}</td>
                     <td className="text-center">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -584,34 +685,58 @@ function Usuarios() {
                         <span className="badge badge-success">Activo</span>
                       )}
                     </td>
-                    <td>
-                      {isUserOnline(user.last_seen) ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{
-                            width: '10px', height: '10px', borderRadius: '50%',
-                            backgroundColor: '#10b981', display: 'inline-block'
-                          }}></span>
-                          <span className="text-sm" style={{ color: '#10b981', fontWeight: 600 }}>En línea</span>
-                        </span>
-                      ) : (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{
-                            width: '10px', height: '10px', borderRadius: '50%',
-                            backgroundColor: '#94a3b8', display: 'inline-block'
-                          }}></span>
-                          <span className="text-sm text-secondary">{getRelativeTime(user.last_seen)}</span>
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-sm text-secondary">
-                      {user.last_ip || '—'}
-                    </td>
+                    {activeTab === 'activos' ? (
+                      <>
+                        <td>
+                          {isUserOnline(user.last_seen) ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{
+                                width: '10px', height: '10px', borderRadius: '50%',
+                                backgroundColor: '#10b981', display: 'inline-block'
+                              }}></span>
+                              <span className="text-sm" style={{ color: '#10b981', fontWeight: 600 }}>En línea</span>
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{
+                                width: '10px', height: '10px', borderRadius: '50%',
+                                backgroundColor: '#94a3b8', display: 'inline-block'
+                              }}></span>
+                              <span className="text-sm text-secondary">{getRelativeTime(user.last_seen)}</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-sm text-secondary">
+                          {user.last_ip || '—'}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="text-sm">
+                          {user.disabled_at
+                            ? new Date(user.disabled_at).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : <span className="text-secondary">Sin registro</span>
+                          }
+                        </td>
+                        <td className="text-sm">
+                          {user.disabled_by || <span className="text-secondary">Admin</span>}
+                        </td>
+                      </>
+                    )}
                     <td>
                       {new Date(user.created_at).toLocaleDateString('es-VE')}
                     </td>
                     <td>
                       {user.id_user === currentUserId ? (
-                        <span className="text-sm text-secondary">(Tu cuenta)</span>
+                        <div className="flex gap-2">
+                          <button
+                            className="btn btn-sm btn-primary flex items-center gap-2"
+                            onClick={() => handleEdit(user)}
+                          >
+                            <Pencil className="w-4 h-4" /> Editar
+                          </button>
+                          <span className="text-xs text-slate-400 self-center">(Tu cuenta)</span>
+                        </div>
                       ) : (
                         <div className="flex gap-2">
                           {!(user.id_rol === 4) && !(user.id_rol === 1 && userRole === 1) && (
@@ -642,9 +767,36 @@ function Usuarios() {
                 ))}
               </tbody>
             </table>
-          )}
         </div>
+        )}
+          </div>
+        </div>
+
+        {/* Paginación */}
+        {totalPages >= 1 && filteredUsers.length > 0 && (
+          <div className="flex items-center justify-center gap-4 pt-4 mt-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={safePage <= 1}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+            >
+              <ChevronLeft className="w-4 h-4" /> Anterior
+            </button>
+            <span className="text-sm font-medium text-gray-600">Página {safePage} de {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={safePage >= totalPages}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+            >
+              Siguiente <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
+        )
+      })()}
     </div>
   )
 }

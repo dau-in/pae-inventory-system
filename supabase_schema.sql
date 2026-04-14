@@ -2,7 +2,7 @@
 -- PROYECTO: PAE Inventory System
 -- DESCRIPCIÓN: Esquema de Base de Datos, Triggers y Políticas RBAC
 -- MOTOR: PostgreSQL (Supabase)
--- ÚLTIMA ACTUALIZACIÓN: 2026-03-22 11:45 AM
+-- ÚLTIMA ACTUALIZACIÓN: 2026-04-14
 -- ====================================================================
 -- NOTA: Este archivo es la fuente de verdad de la estructura de la BD.
 -- Se mantiene para documentación, control de versiones y sincronización.
@@ -28,13 +28,15 @@ CREATE TABLE public.rol (
 -- Perfiles de usuario vinculados a auth.users de Supabase
 -- --------------------------------------------------------------------
 CREATE TABLE public.users (
-    id_user    UUID NOT NULL PRIMARY KEY,
-    username   TEXT NOT NULL UNIQUE,
-    id_rol     INTEGER DEFAULT 2 REFERENCES public.rol(id_rol),
-    created_at TIMESTAMPTZ DEFAULT now(),
-    is_active  BOOLEAN DEFAULT TRUE,
-    last_seen  TIMESTAMPTZ,
-    last_ip    TEXT,
+    id_user     UUID NOT NULL PRIMARY KEY,
+    username    TEXT NOT NULL UNIQUE,
+    id_rol      INTEGER DEFAULT 2 REFERENCES public.rol(id_rol),
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    is_active   BOOLEAN DEFAULT TRUE,
+    last_seen   TIMESTAMPTZ,
+    last_ip     TEXT,
+    disabled_at TIMESTAMPTZ DEFAULT NULL,  -- Timestamp de la última deshabilitación
+    disabled_by TEXT DEFAULT NULL,          -- Nombre del responsable que deshabilitó
     CONSTRAINT users_id_user_fkey FOREIGN KEY (id_user) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
@@ -412,8 +414,10 @@ $$;
 -- Desarrollador contra modificaciones no autorizadas.
 -- Las actualizaciones que solo tocan columnas de actividad (heartbeat:
 -- last_seen, last_ip) se dejan pasar sin validación.
+-- AUTOGESTÍON: Permite que un usuario cambie su propio username/contraseña
+-- pero bloquea cambios de rol propio y auto-desactivación.
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.protect_director_users() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.protect_director_users() RETURNS TRIGGER
     LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     v_actor_role INTEGER;
@@ -428,10 +432,26 @@ BEGIN
 
     SELECT id_rol INTO v_actor_role FROM users WHERE id_user = auth.uid();
 
+    -- ════════════════════════════════════════════════════════
+    -- AUTOGESTÍON: El usuario edita su PROPIA cuenta
+    -- Se permite cambiar username, pero NO rol ni is_active
+    -- ════════════════════════════════════════════════════════
     IF OLD.id_user = auth.uid() THEN
-        RAISE EXCEPTION 'No puede modificar su propia cuenta desde la gestión de usuarios.';
+        -- Bloquear cambio de rol propio
+        IF OLD.id_rol IS DISTINCT FROM NEW.id_rol THEN
+            RAISE EXCEPTION 'No puede cambiar su propio rol.';
+        END IF;
+        -- Bloquear auto-desactivación
+        IF OLD.is_active IS DISTINCT FROM NEW.is_active THEN
+            RAISE EXCEPTION 'No puede desactivar su propia cuenta.';
+        END IF;
+        -- Si solo cambia el username u otros campos inofensivos, se permite
+        RETURN NEW;
     END IF;
 
+    -- ════════════════════════════════════════════════════════
+    -- GESTIÓN DE OTROS: Reglas RBAC normales
+    -- ════════════════════════════════════════════════════════
     IF OLD.id_rol = 4 THEN
         RAISE EXCEPTION 'No puede modificar la cuenta de un Desarrollador.';
     END IF;

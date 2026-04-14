@@ -21,7 +21,7 @@ function RegistroDiario() {
   const [editingRecord, setEditingRecord] = useState(null)
   const [annulling, setAnnulling] = useState(false)
 
-  const isInitialMount = useRef(true)
+  const prevPage = useRef(currentPage)
   const tableRef = useRef(null)
 
   const [formData, setFormData] = useState({
@@ -42,14 +42,12 @@ function RegistroDiario() {
     })
   }, [])
 
-  // Scroll to table header on page change (skip initial mount)
+  // Scroll to table header on page change (skip initial load)
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
-    }
+    if (prevPage.current === currentPage) return
     if (!loading && tableRef.current) {
       tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      prevPage.current = currentPage
     }
   }, [currentPage, loading])
 
