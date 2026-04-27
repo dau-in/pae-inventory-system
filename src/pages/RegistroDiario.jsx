@@ -9,7 +9,7 @@ function RegistroDiario() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [registros, setRegistros] = useState([])
-  const [productosConRendimiento, setProductosConRendimiento] = useState([])
+  const [productosDisponibles, setProductosDisponibles] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [userName, setUserName] = useState('')
@@ -35,7 +35,7 @@ function RegistroDiario() {
 
   useEffect(() => {
     loadRegistros()
-    loadProductosConRendimiento()
+    loadProductosDisponibles()
     getUserData().then(data => {
       setUserRole(data?.id_rol)
       setUserName(data?.username || '')
@@ -51,16 +51,26 @@ function RegistroDiario() {
     }
   }, [currentPage, loading])
 
-  const loadProductosConRendimiento = async () => {
+  const loadProductosDisponibles = async () => {
     try {
       const { data, error } = await supabase
-        .from('receta_porcion')
-        .select('id_product, rendimiento_por_unidad, product(id_product, product_name, unit_measure, stock)')
+        .from('product')
+        .select('id_product, product_name, unit_measure, stock, receta_porcion(rendimiento_por_unidad)')
+        .eq('is_archived', false)
+        .gt('stock', 0)
+        .order('product_name')
 
       if (error) throw error
-      setProductosConRendimiento(data || [])
+      // Normalizar: receta_porcion viene como objeto (UNIQUE) o null, no como array
+      const normalized = (data || []).map(p => ({
+        ...p,
+        rendimiento: Array.isArray(p.receta_porcion)
+          ? p.receta_porcion[0]?.rendimiento_por_unidad || null
+          : p.receta_porcion?.rendimiento_por_unidad || null
+      }))
+      setProductosDisponibles(normalized)
     } catch (error) {
-      console.error('Error cargando rubros con rendimiento:', error)
+      console.error('Error cargando productos disponibles:', error)
     }
   }
 
@@ -126,15 +136,17 @@ function RegistroDiario() {
 
   const getCalculoRubro = (idProduct) => {
     if (!idProduct || !formData.asistencia_total) return null
-    const porcion = productosConRendimiento.find(p => p.id_product === parseInt(idProduct))
-    if (!porcion) return null
-    const cantidad = parseFloat(formData.asistencia_total) / porcion.rendimiento_por_unidad
+    const producto = productosDisponibles.find(p => p.id_product === parseInt(idProduct))
+    if (!producto) return null
+    if (!producto.rendimiento) return { sinRendimiento: true, nombre: producto.product_name }
+    const cantidad = parseFloat(formData.asistencia_total) / producto.rendimiento
     return {
       cantidad: cantidad.toFixed(2),
-      unit: porcion.product.unit_measure,
-      stock: porcion.product.stock,
-      nombre: porcion.product.product_name,
-      suficiente: porcion.product.stock >= cantidad
+      unit: producto.unit_measure,
+      stock: producto.stock,
+      nombre: producto.product_name,
+      suficiente: producto.stock >= cantidad,
+      sinRendimiento: false
     }
   }
 
@@ -185,6 +197,16 @@ function RegistroDiario() {
       return
     }
 
+    // Verificar que todos los rubros tengan rendimiento configurado
+    const sinRendimiento = rubrosValidos.filter(r => {
+      const p = productosDisponibles.find(pd => pd.id_product === parseInt(r.id_product))
+      return !p?.rendimiento
+    })
+    if (sinRendimiento.length > 0) {
+      notifyError('Rendimiento faltante', 'Uno o más rubros seleccionados no tienen rendimiento configurado en el Módulo de Porciones.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -203,7 +225,7 @@ function RegistroDiario() {
       notifySuccess('Operación registrada', data?.mensaje || 'Se procesó correctamente')
       resetForm()
       loadRegistros()
-      loadProductosConRendimiento()
+      loadProductosDisponibles()
     } catch (error) {
       console.error('Error procesando operación:', error)
       notifyError('Error al procesar', error.message)
@@ -472,21 +494,27 @@ function RegistroDiario() {
                           required
                         >
                           <option value="">Seleccionar rubro...</option>
-                          {productosConRendimiento
+                          {productosDisponibles
                             .filter(p => !rubrosYaSeleccionados.includes(p.id_product))
                             .map(p => (
                               <option key={p.id_product} value={p.id_product}>
-                                {p.product.product_name} (stock: {p.product.stock} {p.product.unit_measure})
+                                {p.product_name} (stock: {p.stock} {p.unit_measure}){!p.rendimiento ? ' ⚠' : ''}
                               </option>
                             ))}
                         </select>
 
                         <div className="text-sm">
                           {calculo ? (
-                            <span style={{ color: calculo.suficiente ? '#059669' : '#dc2626', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                              {calculo.suficiente ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />} {calculo.cantidad} {calculo.unit} necesarios
-                              {!calculo.suficiente && ` (stock: ${calculo.stock})`}
-                            </span>
+                            calculo.sinRendimiento ? (
+                              <span className="text-red-500 text-sm flex items-center gap-1">
+                                <AlertTriangle className="w-4 h-4 flex-shrink-0" /> Este rubro no tiene rendimiento configurado en el Módulo de Porciones.
+                              </span>
+                            ) : (
+                              <span style={{ color: calculo.suficiente ? '#059669' : '#dc2626', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                {calculo.suficiente ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />} {calculo.cantidad} {calculo.unit} necesarios
+                                {!calculo.suficiente && ` (stock: ${calculo.stock})`}
+                              </span>
+                            )
                           ) : (
                             <span className="text-secondary">
                               {rubro.id_product ? 'Ingrese asistencia para calcular' : 'Seleccione un rubro'}

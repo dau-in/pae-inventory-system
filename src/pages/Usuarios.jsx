@@ -571,36 +571,26 @@ function Usuarios() {
         </div>
       )}
 
-      {/* Tabs — Pill Design */}
-      <div className="flex gap-2 p-1 bg-slate-100/50 rounded-2xl w-fit mb-6">
-        <button
-          onClick={() => setActiveTab('activos')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            activeTab === 'activos'
-              ? 'bg-white shadow-sm text-orange-600 border border-orange-100/50'
-              : 'text-slate-500 hover:bg-white/40'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Activos
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            activeTab === 'activos' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200/60 text-gray-500'
-          }`}>{usuarios.filter(u => u.is_active !== false).length}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('deshabilitados')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            activeTab === 'deshabilitados'
-              ? 'bg-white shadow-sm text-orange-600 border border-orange-100/50'
-              : 'text-slate-500 hover:bg-white/40'
-          }`}
-        >
-          <UserX className="w-4 h-4" />
-          Deshabilitados
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            activeTab === 'deshabilitados' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200/60 text-gray-500'
-          }`}>{usuarios.filter(u => u.is_active === false).length}</span>
-        </button>
+      {/* ═══ Tabs ═══ */}
+      <div className="flex w-full bg-orange-50/60 p-1.5 rounded-xl mb-6">
+        {[{ key: 'activos', icon: Users, label: 'Activos', count: usuarios.filter(u => u.is_active !== false).length },
+          { key: 'deshabilitados', icon: UserX, label: 'Deshabilitados', count: usuarios.filter(u => u.is_active === false).length }
+        ].map(tab => (
+          <button key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all ${
+              activeTab === tab.key
+                ? 'bg-white shadow-sm font-bold text-orange-800'
+                : 'font-medium text-slate-500 hover:text-slate-700 hover:bg-orange-50/80'}`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              activeTab === tab.key
+                ? 'bg-orange-100 text-orange-800'
+                : 'bg-slate-200/70 text-slate-500'}`}>{tab.count}</span>
+          </button>
+        ))}
       </div>
 
       {/* Tabla de usuarios */}

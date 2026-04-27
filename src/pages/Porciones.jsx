@@ -257,9 +257,7 @@ function Porciones() {
       {/* Info box */}
       <div className="alert alert-warning mb-4">
         <span className="inline-flex items-center gap-1"><Lightbulb className="w-4 h-4" /> <strong>¿Cómo configurar las porciones?</strong></span><br/>
-        Aquí le enseñas al sistema para cuántos niños alcanza 1 kilo, 1 litro o 1 unidad de cada rubro.
-        Al registrar el menú diario, el sistema usará este número para descontar automáticamente
-        la cantidad exacta del inventario.
+        Define el factor de rendimiento de cada rubro. Indica para cuántos estudiantes alcanza una unidad base (1 kg, 1 litro, 1 unidad). El sistema utilizará este valor para calcular y descontar automáticamente el stock exacto durante el registro del consumo diario.
       </div>
 
       {showForm && userRole !== 3 && (
@@ -316,20 +314,37 @@ function Porciones() {
                   </div>
 
                   <div className="form-group">
-                    <label>Rendimiento (porciones) <span className="text-red-500 ml-1">●</span></label>
-                    <input
-                      className="w-full"
-                      type="number"
-                      step="0.01"
-                      name="rendimiento_por_unidad"
-                      value={formData.rendimiento_por_unidad}
-                      onChange={handleInputChange}
-                      placeholder="Ej: 12"
-                      required
-                    />
-                    <p className="text-sm text-secondary mt-1">
-                      Ej: Si escribes 5, significa que 1 {formData.unit_measure} alcanza para 5 niños.
-                    </p>
+                    <label>Ecuación de Rendimiento <span className="text-red-500 ml-1">●</span></label>
+                    {formData.id_product ? (
+                      <div className="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 shadow-sm transition-all duration-300">
+                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap flex items-center gap-1.5">
+                          <span className="bg-orange-100 text-orange-800 font-bold px-2 py-0.5 rounded-md border border-orange-200 shadow-sm">
+                            1 {formData.unit_measure || 'und'}
+                          </span>
+                          rinde para
+                        </span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          name="rendimiento_por_unidad"
+                          value={formData.rendimiento_por_unidad}
+                          onChange={handleInputChange}
+                          placeholder="0"
+                          className="block w-24 text-center rounded-md border-gray-300 focus:border-orange-500 focus:ring-orange-500 text-base font-bold shadow-inner"
+                          required
+                        />
+                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                          estudiantes
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center bg-gray-100 px-4 py-3 rounded-lg border border-gray-200 border-dashed shadow-sm">
+                        <span className="text-sm text-gray-400 italic">
+                          Seleccione un rubro para configurar su rendimiento
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">

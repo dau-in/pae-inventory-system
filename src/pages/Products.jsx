@@ -3,7 +3,7 @@ import { supabase, getUserData, getLocalDate } from '../supabaseClient'
 import { notifySuccess, notifyError, confirmDanger, confirmAction } from '../utils/notifications'
 import { exportPDF } from '../utils/pdfGenerator'
 import GlobalLoader from '../components/GlobalLoader'
-import { X, Plus, Pencil, Archive, RotateCcw, Trash2, FileText, AlertTriangle, Package, Save } from 'lucide-react'
+import { X, Plus, Pencil, Archive, RotateCcw, Trash2, FileText, AlertTriangle, Package, Save, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 function Products() {
   const [loading, setLoading] = useState(true)
@@ -14,9 +14,11 @@ function Products() {
   const [categoryError, setCategoryError] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [userName, setUserName] = useState('')
-  const [activeTab, setActiveTab] = useState('activos')
-  const [inventoryView, setInventoryView] = useState('general')
-  const [expiringProducts, setExpiringProducts] = useState([])
+  const [activeTab, setActiveTab] = useState('general')
+  const [lotes, setLotes] = useState([])
+  const [lotesLoading, setLotesLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 20
   const [exporting, setExporting] = useState(false)
   const [formData, setFormData] = useState({
     product_name: '',
@@ -29,7 +31,7 @@ function Products() {
     loadProducts()
     loadCategories()
     loadUserRole()
-    loadExpiringProducts()
+    loadLotes()
   }, [])
 
   const loadUserRole = async () => {
@@ -68,58 +70,47 @@ function Products() {
     }
   }
 
-  const loadExpiringProducts = async () => {
+  const getDaysUntil = (dateStr) => {
+    if (!dateStr) return null
+    const today = new Date(); today.setHours(0,0,0,0)
+    return Math.round((new Date(dateStr + 'T00:00:00') - today) / 86400000)
+  }
+
+  const loadLotes = async () => {
+    setLotesLoading(true)
     try {
-      const { data: inputData, error: inputError } = await supabase
+      const { data, error } = await supabase
         .from('input')
-        .select('id_product, lotes_detalle, guia_entrada!inner(estado), product(product_name, unit_measure, stock)')
+        .select('id_input, id_product, fecha, lotes_detalle, guia_entrada!inner(estado), product(product_name, unit_measure)')
         .eq('guia_entrada.estado', 'Aprobada')
-
-      if (inputError) throw inputError
-
-      const today = getLocalDate()
-      const in7Days = (() => {
-        const d = new Date()
-        d.setDate(d.getDate() + 7)
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      })()
-
-      // Group expiring/expired lotes by product
-      const productMap = {}
-      for (const inp of (inputData || [])) {
-        if (!inp.lotes_detalle || !Array.isArray(inp.lotes_detalle)) continue
-        for (const lote of inp.lotes_detalle) {
-          const fv = lote.fecha_vencimiento || ''
+      if (error) throw error
+      const flat = []
+      for (const inp of (data || [])) {
+        if (!Array.isArray(inp.lotes_detalle)) continue
+        inp.lotes_detalle.forEach((lote, i) => {
           const cant = parseFloat(lote.cantidad) || 0
-          if (cant <= 0) continue
-          const isExpired = fv < today
-          const isExpiringSoon = fv >= today && fv <= in7Days
-          if (isExpired || isExpiringSoon) {
-            if (!productMap[inp.id_product]) {
-              productMap[inp.id_product] = {
-                id_product: inp.id_product,
-                product_name: inp.product?.product_name || '-',
-                unit_measure: inp.product?.unit_measure || '-',
-                stock: inp.product?.stock ?? 0,
-                ultimo_ingreso: null,
-                lotes: []
-              }
-            }
-            productMap[inp.id_product].lotes.push({
-              cantidad: cant,
-              fecha_vencimiento: fv,
-              estado: isExpired ? 'Vencido' : 'Por vencer'
-            })
-          }
-        }
+          if (cant <= 0) return
+          flat.push({
+            id_input: inp.id_input, lote_idx: i + 1,
+            product_name: inp.product?.product_name || '-',
+            unit_measure: inp.product?.unit_measure || '-',
+            cantidad: cant,
+            fecha_vencimiento: lote.fecha_vencimiento || '',
+            fecha_input: inp.fecha || '',
+            dias_restantes: getDaysUntil(lote.fecha_vencimiento)
+          })
+        })
       }
-
-      // Merge ultimo_ingreso from products state
-      const result = Object.values(productMap)
-      // We'll enrich with ultimo_ingreso after products are loaded
-      setExpiringProducts(result)
+      flat.sort((a, b) => {
+        if (!a.fecha_vencimiento) return 1
+        if (!b.fecha_vencimiento) return -1
+        return a.fecha_vencimiento.localeCompare(b.fecha_vencimiento)
+      })
+      setLotes(flat)
     } catch (error) {
-      console.error('Error cargando lotes vencidos:', error)
+      console.error('Error cargando lotes:', error)
+    } finally {
+      setLotesLoading(false)
     }
   }
 
@@ -316,32 +307,21 @@ function Products() {
     if (exporting) return
     setExporting(true)
     try {
-      if (inventoryView === 'vencimientos') {
-        // Exportar reporte de vencimientos
+      if (activeTab === 'lotes') {
         const columns = [
           { header: 'Rubro', dataKey: 'product_name' },
-          { header: 'Cantidad', dataKey: 'cantidad' },
+          { header: 'Stock Lote', dataKey: 'cantidad' },
           { header: 'Unidad', dataKey: 'unit_measure' },
           { header: 'Vencimiento', dataKey: 'fecha_vencimiento' },
           { header: 'Estado', dataKey: 'estado' },
         ]
-        const rows = expiringProducts.flatMap(p =>
-          p.lotes.map(lote => ({
-            product_name: p.product_name,
-            cantidad: lote.cantidad,
-            unit_measure: p.unit_measure,
-            fecha_vencimiento: lote.fecha_vencimiento,
-            estado: lote.estado,
-          }))
-        )
-        await exportPDF({
-          title: 'REPORTE DE VENCIMIENTOS',
-          columns,
-          data: rows,
-          userName,
-        })
+        const rows = lotes.map(l => ({
+          product_name: l.product_name, cantidad: l.cantidad, unit_measure: l.unit_measure,
+          fecha_vencimiento: l.fecha_vencimiento || 'Sin fecha',
+          estado: l.dias_restantes === null ? 'Sin fecha' : l.dias_restantes <= 0 ? 'Vencido' : l.dias_restantes <= 7 ? 'Crítico' : l.dias_restantes <= 30 ? 'Por vencer' : 'Vigente',
+        }))
+        await exportPDF({ title: 'REPORTE DE LOTES (FIFO)', columns, data: rows, userName })
       } else {
-        // Exportar inventario general
         const columns = [
           { header: 'Rubro', dataKey: 'product_name' },
           { header: 'Categoría', dataKey: 'category_name' },
@@ -349,17 +329,10 @@ function Products() {
           { header: 'Unidad', dataKey: 'unit_measure' },
         ]
         const rows = sortedProducts.map(p => ({
-          product_name: p.product_name,
-          category_name: p.category?.category_name || '-',
-          stock: p.stock_real,
-          unit_measure: p.unit_measure,
+          product_name: p.product_name, category_name: p.category?.category_name || '-',
+          stock: p.stock_real, unit_measure: p.unit_measure,
         }))
-        await exportPDF({
-          title: 'REPORTE DE INVENTARIO ACTUAL',
-          columns,
-          data: rows,
-          userName,
-        })
+        await exportPDF({ title: activeTab === 'archivo' ? 'REPORTE DE RUBROS ARCHIVADOS' : 'REPORTE DE INVENTARIO ACTUAL', columns, data: rows, userName })
       }
     } catch (err) {
       console.error('Error exportando PDF:', err)
@@ -391,10 +364,34 @@ function Products() {
 
   // Filtrar por tab activo
   const filteredProducts = products.filter(p =>
-    activeTab === 'activos' ? !p.is_archived : p.is_archived === true
+    activeTab === 'archivo' ? p.is_archived === true : !p.is_archived
   )
   const sortedProducts = [...filteredProducts].sort((a, b) => (b.stock_real ?? 0) - (a.stock_real ?? 0))
-  const totalExpiringLotes = expiringProducts.reduce((sum, p) => sum + p.lotes.length, 0)
+  const getExpiryBadge = (days) => {
+    const base = 'px-2 py-0.5 text-xs font-medium rounded-full'
+    if (days === null) return <span className={`${base} bg-gray-100 text-gray-500`}>Sin fecha</span>
+    if (days <= 0) return <span className={`${base} bg-red-100 text-red-800`}>VENCIDO</span>
+    if (days <= 7) return <span className={`${base} bg-red-50 text-red-600`}>Crítico ({days}d)</span>
+    if (days <= 30) return <span className={`${base} bg-yellow-50 text-yellow-700`}>Por vencer ({days}d)</span>
+    return <span className={`${base} bg-green-50 text-green-700`}>Vigente ({days}d)</span>
+  }
+
+  // ── Lotes: separar vigentes y vencidos ──
+  const lotesVigentes = lotes.filter(l => l.dias_restantes === null || l.dias_restantes > 0)
+  const lotesVencidos = lotes.filter(l => l.dias_restantes !== null && l.dias_restantes <= 0)
+    .sort((a, b) => b.fecha_vencimiento.localeCompare(a.fecha_vencimiento))
+  const lotesOrdenados = [...lotesVigentes, ...lotesVencidos]
+
+  // ── Paginación universal ──
+  const getPageData = (data) => {
+    const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE)
+    const safePage = Math.min(currentPage, totalPages || 1)
+    const paginated = data.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+    return { paginated, totalPages, safePage }
+  }
+  const productPages = getPageData(sortedProducts)
+  const lotesPages = getPageData(lotesOrdenados)
+  const dividerIndex = lotesVigentes.length // para insertar fila divisoria
 
   if (loading && products.length === 0) return <GlobalLoader text="Consultando la base de datos..." />
 
@@ -407,105 +404,48 @@ function Products() {
             id="btn-export-inventory-pdf"
             className="bg-orange-100 text-orange-700 hover:bg-orange-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-semibold"
             onClick={handleExportPDF}
-            disabled={exporting || (inventoryView === 'general' ? sortedProducts.length === 0 : expiringProducts.length === 0)}
+            disabled={exporting || (activeTab === 'lotes' ? lotes.length === 0 : sortedProducts.length === 0)}
           >
             <FileText className="w-4 h-4" />
             {exporting ? 'Generando...' : 'Generar Reporte'}
           </button>
           {userRole !== 3 && (
             <button
-              className={`btn btn-primary flex items-center gap-2 transition-opacity duration-300 ${(inventoryView === 'vencimientos' || activeTab === 'archivados') ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-              onClick={() => { if (activeTab === 'activos' && inventoryView === 'general') setShowForm(!showForm) }}
-              disabled={inventoryView === 'vencimientos' || activeTab === 'archivados'}
+              className={`btn btn-primary flex items-center gap-2 transition-opacity duration-200 ${activeTab !== 'general' ? 'opacity-40 cursor-not-allowed' : ''}`}
+              onClick={() => { if (activeTab === 'general') setShowForm(!showForm) }}
+              disabled={activeTab !== 'general'}
             >
-              {showForm && activeTab === 'activos' && inventoryView === 'general' ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nuevo Rubro</>}
+              {showForm && activeTab === 'general' ? <><X className="w-4 h-4" /> Cancelar</> : <><Plus className="w-4 h-4" /> Nuevo Rubro</>}
             </button>
           )}
         </div>
       </div>
 
-      {/* View Tabs: General / Próximos a Vencer */}
-      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: '#FFF7ED' }}>
-        <button
-          onClick={() => setInventoryView('general')}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out"
-          style={inventoryView === 'general'
-            ? { background: '#fff', color: '#9a3412', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-            : { background: 'transparent', color: '#78716c' }
-          }
-        >
-          <Package className="w-4 h-4" />
-          Inventario General
-        </button>
-        <button
-          onClick={() => setInventoryView('vencimientos')}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out"
-          style={inventoryView === 'vencimientos'
-            ? { background: '#fff', color: '#9a3412', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-            : { background: 'transparent', color: '#78716c' }
-          }
-        >
-          <AlertTriangle className="w-4 h-4" />
-          Próximos a Vencer
-          {totalExpiringLotes > 0 && (
-            <span className="ml-2 relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ffc885] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-[#FFD9A8]"></span>
-            </span>
-          )}
-        </button>
+      {/* ═══ Tabs ═══ */}
+      <div className="flex w-full bg-orange-50/60 p-1.5 rounded-xl mb-6">
+        {[{ key: 'general', icon: Package, label: 'Catálogo de Rubros', count: products.filter(p => !p.is_archived).length },
+          { key: 'lotes', icon: AlertTriangle, label: 'Control de Vencimientos', count: lotes.length },
+          { key: 'archivo', icon: Archive, label: 'Catálogo Inactivo', count: products.filter(p => p.is_archived).length }
+        ].map(tab => (
+          <button key={tab.key}
+            onClick={() => { setActiveTab(tab.key); resetForm(); setCurrentPage(1) }}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all ${
+              activeTab === tab.key
+                ? 'bg-white shadow-sm font-bold text-orange-800'
+                : 'font-medium text-slate-500 hover:text-slate-700 hover:bg-orange-50/80'}`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              activeTab === tab.key
+                ? 'bg-orange-100 text-orange-800'
+                : 'bg-slate-200/70 text-slate-500'}`}>{tab.count}</span>
+          </button>
+        ))}
       </div>
-
-      {/* Sub-tabs: Always rendered for CLS prevention */}
-      <div className={`flex gap-1 mb-4 p-1 rounded-xl transition-all duration-300 ease-in-out ${
-        inventoryView === 'vencimientos' ? 'opacity-50 pointer-events-none' : ''
-      }`} style={{ background: '#FFF7ED' }}>
-        <button
-          onClick={() => { setActiveTab('activos'); resetForm() }}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out ${
-            inventoryView === 'vencimientos' ? 'cursor-not-allowed' : ''
-          }`}
-          style={activeTab === 'activos'
-            ? { background: '#fff', color: '#9a3412', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-            : { background: 'transparent', color: '#78716c' }
-          }
-          disabled={inventoryView === 'vencimientos'}
-        >
-          <Plus className="w-4 h-4" />
-          Rubros Activos
-          <span className="ml-1 px-2 py-0.5 text-xs rounded-full transition-all duration-300 ease-in-out" style={activeTab === 'activos'
-            ? { background: '#FFEDD5', color: '#9a3412' }
-            : { background: '#e7e5e4', color: '#78716c' }
-          }>
-            {products.filter(p => !p.is_archived).length}
-          </span>
-        </button>
-        <button
-          onClick={() => { setActiveTab('archivados'); resetForm() }}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out ${
-            inventoryView === 'vencimientos' ? 'cursor-not-allowed' : ''
-          }`}
-          style={activeTab === 'archivados'
-            ? { background: '#fff', color: '#9a3412', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-            : { background: 'transparent', color: '#78716c' }
-          }
-          disabled={inventoryView === 'vencimientos'}
-        >
-          <Archive className="w-4 h-4" />
-          Catálogo Archivado
-          <span className="ml-1 px-2 py-0.5 text-xs rounded-full transition-all duration-300 ease-in-out" style={activeTab === 'archivados'
-            ? { background: '#FFEDD5', color: '#9a3412' }
-            : { background: '#e7e5e4', color: '#78716c' }
-          }>
-            {products.filter(p => p.is_archived === true).length}
-          </span>
-        </button>
-      </div>
-
-      {inventoryView === 'general' && (<>
 
       {/* Modal: Crear/Editar Rubro */}
-      {showForm && userRole !== 3 && (
+      {activeTab === 'general' && showForm && userRole !== 3 && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) resetForm() }}
@@ -618,79 +558,92 @@ function Products() {
         </div>
       )}
 
-      {/* Tabla de rubros */}
-      <div key={activeTab} className="card min-w-0" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+      {/* ═══ TAB: Catálogo de Rubros ═══ */}
+      {activeTab === 'general' && (
+      <div key="general" className="card min-w-0" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-slate-800">Rubros Activos <span className="ml-2 bg-orange-100 text-orange-800 text-xs font-bold px-2.5 py-1 rounded-full">{sortedProducts.length}</span></h3>
+          {productPages.totalPages > 1 && <span className="text-sm text-slate-500">Pág. {productPages.safePage} de {productPages.totalPages}</span>}
+        </div>
         <div className="overflow-x-auto">
           {sortedProducts.length === 0 ? (
             <div className="empty-state">
-              {activeTab === 'activos' ? (
-                <>
-                  <p>No hay rubros activos registrados</p>
-                  <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>
-                    Crear primer rubro
-                  </button>
-                </>
-              ) : (
-                <p className="text-slate-500">No hay rubros archivados</p>
-              )}
+              <p>No hay rubros activos registrados</p>
+              <button className="btn btn-primary mt-4" onClick={() => setShowForm(true)}>Crear primer rubro</button>
             </div>
           ) : (
             <table>
-              <thead>
-                <tr>
-                  <th>Nº Ítem</th>
-                  <th>Nombre</th>
-                  <th>Categoría</th>
-                  <th>Stock</th>
-                  <th>Unidad</th>
-                  {userRole !== 3 && <th>Acciones</th>}
-                </tr>
-              </thead>
+              <thead><tr><th>Nº Ítem</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Unidad</th>{userRole !== 3 && <th>Acciones</th>}</tr></thead>
               <tbody>
-                {sortedProducts.map((product) => (
+                {productPages.paginated.map(product => (
                   <tr key={product.id_product}>
                     <td>{product.id_product}</td>
                     <td className="font-semibold">{product.product_name}</td>
                     <td>{product.category?.category_name || '-'}</td>
-                    <td>
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        {product.stock_real} {getStockBadge(product.stock_real)}
-                      </div>
-                    </td>
+                    <td><div className="flex items-center gap-2 whitespace-nowrap">{product.stock_real} {getStockBadge(product.stock_real)}</div></td>
                     <td>{product.unit_measure}</td>
                     {userRole !== 3 && (
+                      <td><div className="flex gap-2">
+                        <button className="btn btn-sm btn-primary flex items-center gap-2" onClick={() => handleEdit(product)}><Pencil className="w-4 h-4" /> Editar</button>
+                        {(userRole === 1 || userRole === 4) && (
+                          <button className="btn btn-sm flex items-center gap-2" style={{ background: '#FFF7ED', color: '#9a3412', border: '1px solid #FDBA74' }} onClick={() => handleArchive(product)}><Archive className="w-4 h-4" /> Archivar</button>
+                        )}
+                      </div></td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {productPages.totalPages >= 1 && sortedProducts.length > 0 && (
+          <div className="flex items-center justify-center gap-4 pt-4 mt-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={productPages.safePage <= 1}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+            >
+              <ChevronLeft className="w-4 h-4" /> Anterior
+            </button>
+            <span className="text-sm font-medium text-gray-600">Página {productPages.safePage} de {productPages.totalPages}</span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, productPages.totalPages))}
+              disabled={productPages.safePage >= productPages.totalPages}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+            >
+              Siguiente <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* ═══ TAB: Catálogo Inactivo ═══ */}
+      {activeTab === 'archivo' && (
+      <div key="archivo" className="card min-w-0" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-slate-800">Rubros Archivados <span className="ml-2 bg-slate-200 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-full">{sortedProducts.length}</span></h3>
+          {productPages.totalPages > 1 && <span className="text-sm text-slate-500">Pág. {productPages.safePage} de {productPages.totalPages}</span>}
+        </div>
+        <div className="overflow-x-auto">
+          {sortedProducts.length === 0 ? (
+            <div className="empty-state"><p className="text-slate-500">No hay rubros archivados</p></div>
+          ) : (
+            <table>
+              <thead><tr><th>Nº Ítem</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Unidad</th>{(userRole === 1 || userRole === 4) && <th>Acciones</th>}</tr></thead>
+              <tbody>
+                {productPages.paginated.map(product => (
+                  <tr key={product.id_product}>
+                    <td>{product.id_product}</td>
+                    <td className="font-semibold">{product.product_name}</td>
+                    <td>{product.category?.category_name || '-'}</td>
+                    <td><div className="flex items-center gap-2 whitespace-nowrap">{product.stock_real} {getStockBadge(product.stock_real)}</div></td>
+                    <td>{product.unit_measure}</td>
+                    {(userRole === 1 || userRole === 4) && (
                       <td>
-                        <div className="flex gap-2">
-                          {activeTab === 'activos' ? (
-                            <>
-                              <button
-                                className="btn btn-sm btn-primary flex items-center gap-2"
-                                onClick={() => handleEdit(product)}
-                              >
-                                <Pencil className="w-4 h-4" /> Editar
-                              </button>
-                              {(userRole === 1 || userRole === 4) && (
-                                <button
-                                  className="btn btn-sm flex items-center gap-2"
-                                  style={{ background: '#FFF7ED', color: '#9a3412', border: '1px solid #FDBA74' }}
-                                  onClick={() => handleArchive(product)}
-                                >
-                                  <Archive className="w-4 h-4" /> Archivar
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            (userRole === 1 || userRole === 4) && (
-                              <button
-                                className="btn btn-sm flex items-center gap-2"
-                                style={{ background: '#F0FDF4', color: '#166534', border: '1px solid #86efac' }}
-                                onClick={() => handleRestore(product)}
-                              >
-                                <RotateCcw className="w-4 h-4" /> Restaurar
-                              </button>
-                            )
-                          )}
-                        </div>
+                        <button className="btn btn-sm flex items-center gap-2" style={{ background: '#F0FDF4', color: '#166534', border: '1px solid #86efac' }} onClick={() => handleRestore(product)}><RotateCcw className="w-4 h-4" /> Restaurar</button>
                       </td>
                     )}
                   </tr>
@@ -699,62 +652,98 @@ function Products() {
             </table>
           )}
         </div>
+        {productPages.totalPages >= 1 && sortedProducts.length > 0 && (
+          <div className="flex items-center justify-center gap-4 pt-4 mt-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={productPages.safePage <= 1}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+            >
+              <ChevronLeft className="w-4 h-4" /> Anterior
+            </button>
+            <span className="text-sm font-medium text-gray-600">Página {productPages.safePage} de {productPages.totalPages}</span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, productPages.totalPages))}
+              disabled={productPages.safePage >= productPages.totalPages}
+              className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#FFF7ED', color: '#9a3412' }}
+            >
+              Siguiente <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
-      </>)}
+      )}
 
-      {inventoryView === 'vencimientos' && (
-        <div className="card min-w-0">
-          <h3 className="text-lg font-semibold mb-4">Lotes Vencidos o Próximos a Vencer</h3>
-          {expiringProducts.length === 0 ? (
-            <div className="empty-state">
-              <p className="text-slate-500">No hay lotes vencidos ni próximos a vencer. ¡Todo en orden!</p>
-            </div>
+      {/* ═══ TAB: Control de Vencimientos ═══ */}
+      {activeTab === 'lotes' && (
+        <div className="card min-w-0" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-slate-800">Lotes en Stock <span className="ml-2 bg-orange-100 text-orange-800 text-xs font-bold px-2.5 py-1 rounded-full">{lotes.length}</span></h3>
+            {lotesPages.totalPages > 1 && <span className="text-sm text-slate-500">Pág. {lotesPages.safePage} de {lotesPages.totalPages}</span>}
+          </div>
+          {lotesLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>
+          ) : lotesOrdenados.length === 0 ? (
+            <div className="empty-state"><p className="text-slate-500">No hay lotes activos en el inventario</p></div>
           ) : (
-            <div className="overflow-x-auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Rubro</th>
-                    <th>Lote</th>
-                    <th>Cantidad</th>
-                    <th>Vencimiento</th>
-                    <th>Último Ingreso</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expiringProducts.flatMap(product => {
-                    const matchedProduct = products.find(p => p.id_product === product.id_product)
-                    const ultimoIngreso = matchedProduct?.ultimo_ingreso
-                    return product.lotes.map((lote, idx) => (
-                      <tr key={`${product.id_product}-${idx}`}>
-                        <td className="font-semibold">{product.product_name}</td>
-                        <td className="text-sm">#{idx + 1}</td>
-                        <td>{lote.cantidad} {product.unit_measure}</td>
-                        <td className="text-sm">
-                          <div>{lote.fecha_vencimiento}</div>
-                          <div className={`text-xs mt-0.5 ${lote.estado === 'Vencido' ? 'text-red-500' : 'text-yellow-600'}`}>
-                            {getRelativeDate(lote.fecha_vencimiento)}
-                          </div>
-                        </td>
-                        <td className="text-sm text-slate-600">
-                          {ultimoIngreso ? new Date(ultimoIngreso + 'T00:00:00').toLocaleDateString('es-VE') : 'N/A'}
-                        </td>
-                        <td>
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            lote.estado === 'Vencido'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-yellow-50 text-yellow-700'
-                          }`}>
-                            {lote.estado === 'Vencido' ? 'Vencido' : 'Por vencer'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <table>
+                  <thead><tr><th>Rubro</th><th>ID Lote</th><th>Stock del Lote</th><th>Vencimiento</th><th>Últ. Reabastecimiento</th><th>Estado</th></tr></thead>
+                  <tbody>
+                    {lotesPages.paginated.map((lote, idx) => {
+                      const globalIdx = (lotesPages.safePage - 1) * ITEMS_PER_PAGE + idx
+                      const showDivider = globalIdx === dividerIndex && lotesVencidos.length > 0
+                      return (
+                        <>
+                          {showDivider && (
+                            <tr key="divider" className="bg-slate-50">
+                              <td colSpan="100%" className="text-center font-semibold text-slate-500 py-2">Lotes Caducados (Merma)</td>
+                            </tr>
+                          )}
+                          <tr key={`${lote.id_input}-${lote.lote_idx}-${idx}`}>
+                            <td className="font-semibold">{lote.product_name}</td>
+                            <td className="text-sm font-mono text-slate-500">INP-{lote.id_input}/{lote.lote_idx}</td>
+                            <td className="font-medium">{lote.cantidad} {lote.unit_measure}</td>
+                            <td className="text-sm">
+                              <div>{lote.fecha_vencimiento || '—'}</div>
+                              {lote.fecha_vencimiento && lote.dias_restantes > 0 && (
+                                <div className="text-xs mt-0.5 text-slate-400">{getRelativeDate(lote.fecha_vencimiento)}</div>
+                              )}
+                            </td>
+                            <td className="text-sm text-slate-500">{lote.fecha_input ? new Date(lote.fecha_input + 'T00:00:00').toLocaleDateString('es-VE') : '—'}</td>
+                            <td>{getExpiryBadge(lote.dias_restantes)}</td>
+                          </tr>
+                        </>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {lotesPages.totalPages >= 1 && lotesOrdenados.length > 0 && (
+                <div className="flex items-center justify-center gap-4 pt-4 mt-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={lotesPages.safePage <= 1}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: '#FFF7ED', color: '#9a3412' }}
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Anterior
+                  </button>
+                  <span className="text-sm font-medium text-gray-600">Página {lotesPages.safePage} de {lotesPages.totalPages}</span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, lotesPages.totalPages))}
+                    disabled={lotesPages.safePage >= lotesPages.totalPages}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: '#FFF7ED', color: '#9a3412' }}
+                  >
+                    Siguiente <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
