@@ -2,7 +2,7 @@
 -- PROYECTO: PAE Inventory System
 -- DESCRIPCIÓN: Esquema de Base de Datos, Triggers y Políticas RBAC
 -- MOTOR: PostgreSQL (Supabase)
--- ÚLTIMA ACTUALIZACIÓN: 2026-04-14
+-- ÚLTIMA ACTUALIZACIÓN: 2026-04-30
 -- ====================================================================
 -- NOTA: Este archivo es la fuente de verdad de la estructura de la BD.
 -- Se mantiene para documentación, control de versiones y sincronización.
@@ -115,24 +115,9 @@ COMMENT ON COLUMN public.input.lotes_detalle IS 'Array JSON con detalles de lote
 CREATE INDEX idx_input_lotes_detalle ON public.input USING gin (lotes_detalle);
 
 -- --------------------------------------------------------------------
--- Tabla: output
--- Salidas de inventario (consumo diario, menú, etc.)
--- --------------------------------------------------------------------
-CREATE TABLE public.output (
-    id_output   SERIAL PRIMARY KEY,
-    id_product  INTEGER REFERENCES public.product(id_product),
-    amount      NUMERIC(10,2) NOT NULL CHECK (amount > 0),
-    fecha       DATE DEFAULT CURRENT_DATE,
-    motivo      TEXT,
-    id_menu     INTEGER REFERENCES public.menu_diario(id_menu),
-    created_by  UUID REFERENCES auth.users(id),
-    created_at  TIMESTAMPTZ DEFAULT now(),
-    id_registro INTEGER REFERENCES public.registro_diario(id_registro)
-);
-
--- --------------------------------------------------------------------
 -- Tabla: registro_diario
 -- Cabecera de operaciones diarias (fecha, turno, asistencia)
+-- NOTA: Debe crearse ANTES de output (FK id_registro)
 -- --------------------------------------------------------------------
 CREATE TABLE public.registro_diario (
     id_registro      SERIAL PRIMARY KEY,
@@ -174,6 +159,7 @@ CREATE TABLE public.asistencia_diaria (
 -- --------------------------------------------------------------------
 -- Tabla: menu_diario
 -- Menú planificado por día
+-- NOTA: Debe crearse ANTES de output (FK id_menu)
 -- --------------------------------------------------------------------
 CREATE TABLE public.menu_diario (
     id_menu       SERIAL PRIMARY KEY,
@@ -199,6 +185,23 @@ CREATE TABLE public.menu_detalle (
 );
 
 -- --------------------------------------------------------------------
+-- Tabla: output
+-- Salidas de inventario (consumo diario, menú, etc.)
+-- NOTA: Depende de menu_diario y registro_diario (FK)
+-- --------------------------------------------------------------------
+CREATE TABLE public.output (
+    id_output   SERIAL PRIMARY KEY,
+    id_product  INTEGER REFERENCES public.product(id_product),
+    amount      NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    fecha       DATE DEFAULT CURRENT_DATE,
+    motivo      TEXT,
+    id_menu     INTEGER REFERENCES public.menu_diario(id_menu),
+    created_by  UUID REFERENCES auth.users(id),
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    id_registro INTEGER REFERENCES public.registro_diario(id_registro)
+);
+
+-- --------------------------------------------------------------------
 -- Tabla: audit_log
 -- Bitácora de auditoría del sistema
 -- --------------------------------------------------------------------
@@ -218,15 +221,32 @@ CREATE TABLE public.audit_log (
 -- Perfil institucional (fila única, CHECK id=1)
 -- --------------------------------------------------------------------
 CREATE TABLE public.institucion (
-    id              INTEGER DEFAULT 1 NOT NULL PRIMARY KEY CHECK (id = 1),
-    nombre          TEXT NOT NULL DEFAULT 'Nombre de la Institución',
-    rif             TEXT DEFAULT 'J-00000000-0',
-    codigo_dea      TEXT DEFAULT 'CÓDIGO-DEA',
-    direccion       TEXT DEFAULT '',
-    director_actual TEXT DEFAULT '',
-    logo_url        TEXT DEFAULT '',
-    updated_at      TIMESTAMPTZ DEFAULT now()
+    id                  INTEGER DEFAULT 1 NOT NULL PRIMARY KEY CHECK (id = 1),
+    nombre              TEXT NOT NULL DEFAULT 'Nombre de la Institución',
+    rif                 TEXT DEFAULT 'J-00000000-0',
+    codigo_dea          TEXT DEFAULT 'CÓDIGO-DEA',
+    direccion           TEXT DEFAULT '',
+    director_actual     TEXT DEFAULT '',
+    logo_url            TEXT DEFAULT '',
+    updated_at          TIMESTAMPTZ DEFAULT now(),
+    estado              TEXT DEFAULT '',
+    ciudad              TEXT DEFAULT '',
+    municipio           TEXT DEFAULT '',
+    parroquia           TEXT DEFAULT '',
+    direccion_detallada TEXT DEFAULT '',
+    codigo_postal       TEXT DEFAULT '',
+    correo_electronico  TEXT DEFAULT '',
+    cintillo_url        TEXT DEFAULT ''
 );
+
+COMMENT ON COLUMN public.institucion.estado IS 'Estado geográfico del plantel (ej. Guárico, Miranda)';
+COMMENT ON COLUMN public.institucion.ciudad IS 'Ciudad donde se ubica el plantel';
+COMMENT ON COLUMN public.institucion.municipio IS 'Municipio del plantel';
+COMMENT ON COLUMN public.institucion.parroquia IS 'Parroquia del plantel';
+COMMENT ON COLUMN public.institucion.direccion_detallada IS 'Dirección detallada: urbanización, sector, avenida, calle, etc.';
+COMMENT ON COLUMN public.institucion.codigo_postal IS 'Código postal del plantel';
+COMMENT ON COLUMN public.institucion.correo_electronico IS 'Correo electrónico institucional de contacto';
+COMMENT ON COLUMN public.institucion.cintillo_url IS 'URL del cintillo/membrete institucional para encabezados de PDFs';
 
 -- --------------------------------------------------------------------
 -- Tabla: guia_entrada_backup (respaldo de migración)
@@ -945,3 +965,37 @@ LEFT JOIN input i ON g.id_guia = i.id_guia
 WHERE g.estado IN ('Aprobada', 'Rechazada')
 GROUP BY g.id_guia, u_creador.username, u_aprobador.username
 ORDER BY g.fecha_aprobacion DESC;
+
+-- --------------------------------------------------------------------
+-- Vista: v_stock_real
+-- Stock vigente vs vencido por producto (motor FIFO).
+-- Calcula stock_real (lotes con fecha >= hoy y cantidad > 0)
+-- y stock_vencido (diferencia con stock registrado).
+-- --------------------------------------------------------------------
+CREATE VIEW public.v_stock_real AS
+SELECT
+    p.id_product,
+    p.product_name,
+    p.unit_measure,
+    p.stock AS stock_registrado,
+    COALESCE(sr.stock_vigente, 0::NUMERIC) AS stock_real,
+    (p.stock - COALESCE(sr.stock_vigente, 0::NUMERIC)) AS stock_vencido,
+    (
+        SELECT MAX(ge2.fecha)
+        FROM input i2
+        JOIN guia_entrada ge2 ON i2.id_guia = ge2.id_guia
+        WHERE i2.id_product = p.id_product
+          AND ge2.estado = 'Aprobada'
+    ) AS ultimo_ingreso
+FROM product p
+LEFT JOIN LATERAL (
+    SELECT SUM((lote.value->>'cantidad')::NUMERIC) AS stock_vigente
+    FROM input i
+    JOIN guia_entrada ge ON ge.id_guia = i.id_guia
+    CROSS JOIN LATERAL jsonb_array_elements(i.lotes_detalle) lote(value)
+    WHERE i.id_product = p.id_product
+      AND ge.estado = 'Aprobada'
+      AND (lote.value->>'fecha_vencimiento')::DATE >= CURRENT_DATE
+      AND (lote.value->>'cantidad')::NUMERIC > 0
+) sr ON true
+WHERE p.is_archived = false;
