@@ -2,7 +2,7 @@
 -- PROYECTO: PAE Inventory System
 -- DESCRIPCIÓN: Esquema de Base de Datos, Triggers y Políticas RBAC
 -- MOTOR: PostgreSQL (Supabase)
--- ÚLTIMA ACTUALIZACIÓN: 2026-04-30
+-- ÚLTIMA ACTUALIZACIÓN: 2026-05-03
 -- ====================================================================
 -- NOTA: Este archivo es la fuente de verdad de la estructura de la BD.
 -- Se mantiene para documentación, control de versiones y sincronización.
@@ -74,7 +74,7 @@ CREATE INDEX idx_product_active ON public.product (id_product) WHERE (is_archive
 -- --------------------------------------------------------------------
 CREATE TABLE public.guia_entrada (
     id_guia                SERIAL PRIMARY KEY,
-    numero_guia_sunagro    TEXT NOT NULL UNIQUE,
+    numero_guia_sunagro    TEXT,
     numero_guia_sisecal    TEXT,
     fecha                  DATE DEFAULT CURRENT_DATE,
     vocera_nombre          TEXT,
@@ -85,15 +85,24 @@ CREATE TABLE public.guia_entrada (
     estado                 TEXT DEFAULT 'Pendiente' CHECK (estado IN ('Pendiente', 'Aprobada', 'Rechazada')),
     aprobado_por           UUID REFERENCES public.users(id_user),
     fecha_aprobacion       TIMESTAMPTZ,
-    comentarios_aprobacion TEXT
+    comentarios_aprobacion TEXT,
+    motivo_sin_guia        VARCHAR(100),
+    observaciones_extra    TEXT
 );
 
 COMMENT ON COLUMN public.guia_entrada.estado IS 'Estado del flujo de aprobación: Pendiente, Aprobada, Rechazada';
 COMMENT ON COLUMN public.guia_entrada.aprobado_por IS 'Usuario que aprobó o rechazó la guía (Director o Desarrollador)';
 COMMENT ON COLUMN public.guia_entrada.fecha_aprobacion IS 'Fecha y hora de aprobación o rechazo';
 COMMENT ON COLUMN public.guia_entrada.comentarios_aprobacion IS 'Comentarios del aprobador (opcional para aprobación, obligatorio para rechazo)';
+COMMENT ON COLUMN public.guia_entrada.motivo_sin_guia IS 'Motivo legal predefinido cuando no se dispone de Nº de Guía SUNAGRO';
+COMMENT ON COLUMN public.guia_entrada.observaciones_extra IS 'Detalle adicional cuando el motivo es Otro (especificar)';
 
 CREATE INDEX idx_guia_entrada_estado ON public.guia_entrada (estado);
+
+-- Índice parcial: permite múltiples NULLs pero no duplicados de texto
+CREATE UNIQUE INDEX idx_guia_sunagro_unica
+    ON public.guia_entrada(numero_guia_sunagro)
+    WHERE numero_guia_sunagro IS NOT NULL;
 
 -- --------------------------------------------------------------------
 -- Tabla: input
@@ -507,6 +516,7 @@ DECLARE
     v_total_productos INTEGER := 0;
     v_guia_info RECORD;
     v_user_role INTEGER;
+    v_guia_label TEXT;
 BEGIN
     -- Verificar permisos
     SELECT id_rol INTO v_user_role FROM users WHERE id_user = auth.uid();
@@ -522,6 +532,9 @@ BEGIN
     IF v_guia_info.estado != 'Pendiente' THEN
         RAISE EXCEPTION 'La guía ya fue procesada. Estado actual: %', v_guia_info.estado;
     END IF;
+
+    -- Etiqueta para mensajes (guía con número o registro interno)
+    v_guia_label := COALESCE(v_guia_info.numero_guia_sunagro, 'REGISTRO-INTERNO');
 
     -- Actualizar estado de la guía
     UPDATE guia_entrada
@@ -540,13 +553,13 @@ BEGIN
     -- Auditoría
     INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
     VALUES (auth.uid(), 'APPROVE', 'guia_entrada', p_id_guia,
-        jsonb_build_object('numero_guia', v_guia_info.numero_guia_sunagro,
+        jsonb_build_object('numero_guia', v_guia_label,
             'productos_procesados', v_total_productos, 'comentarios', p_comentarios)::text);
 
     RETURN json_build_object('success', true, 'id_guia', p_id_guia,
         'productos_procesados', v_total_productos,
         'mensaje', format('Guía %s aprobada. %s productos actualizados.',
-            v_guia_info.numero_guia_sunagro, v_total_productos));
+            v_guia_label, v_total_productos));
 EXCEPTION
     WHEN OTHERS THEN RAISE EXCEPTION 'Error al aprobar guía: %', SQLERRM;
 END;
@@ -564,6 +577,7 @@ CREATE FUNCTION public.rechazar_guia(p_id_guia INTEGER, p_motivo TEXT) RETURNS J
 DECLARE
     v_guia_info RECORD;
     v_user_role INTEGER;
+    v_guia_label TEXT;
 BEGIN
     -- Verificar permisos
     SELECT id_rol INTO v_user_role FROM users WHERE id_user = auth.uid();
@@ -585,6 +599,9 @@ BEGIN
         RAISE EXCEPTION 'Debe proporcionar un motivo para rechazar la guía';
     END IF;
 
+    -- Etiqueta para mensajes
+    v_guia_label := COALESCE(v_guia_info.numero_guia_sunagro, 'REGISTRO-INTERNO');
+
     -- Actualizar estado
     UPDATE guia_entrada
     SET estado = 'Rechazada', aprobado_por = auth.uid(),
@@ -594,10 +611,10 @@ BEGIN
     -- Auditoría
     INSERT INTO audit_log (id_user, action_type, table_affected, record_id, details)
     VALUES (auth.uid(), 'REJECT', 'guia_entrada', p_id_guia,
-        jsonb_build_object('numero_guia', v_guia_info.numero_guia_sunagro, 'motivo', p_motivo)::text);
+        jsonb_build_object('numero_guia', v_guia_label, 'motivo', p_motivo)::text);
 
     RETURN json_build_object('success', true, 'id_guia', p_id_guia,
-        'mensaje', format('Guía %s rechazada.', v_guia_info.numero_guia_sunagro));
+        'mensaje', format('Guía %s rechazada.', v_guia_label));
 EXCEPTION
     WHEN OTHERS THEN RAISE EXCEPTION 'Error al rechazar guía: %', SQLERRM;
 END;
@@ -893,6 +910,8 @@ CREATE POLICY "Audit: Todos pueden ver" ON public.audit_log FOR SELECT USING (tr
 
 -- ---- institucion ----
 CREATE POLICY "institucion_select" ON public.institucion FOR SELECT TO authenticated USING (true);
+CREATE POLICY "institucion_insert" ON public.institucion FOR INSERT TO authenticated
+    WITH CHECK (public.get_user_role() IN (1, 4));
 CREATE POLICY "institucion_update" ON public.institucion FOR UPDATE TO authenticated
     USING  (EXISTS (SELECT 1 FROM users WHERE id_user = auth.uid() AND id_rol = 4))
     WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id_user = auth.uid() AND id_rol = 4));

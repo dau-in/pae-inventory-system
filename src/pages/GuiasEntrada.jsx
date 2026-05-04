@@ -25,6 +25,17 @@ function GuiasEntrada() {
   })
   const [detalles, setDetalles] = useState([])
 
+  // Estados para registro de excepción (sin guía SUNAGRO)
+  const [motivoSinGuia, setMotivoSinGuia] = useState('')
+  const [observacionesExtra, setObservacionesExtra] = useState('')
+  const opcionesMotivo = [
+    'Guía no entregada por el transportista',
+    'Despacho sin documentación física completa',
+    'Guía ilegible / deteriorada',
+    'Ruteo multipunto (guía matriz única)',
+    'Otro (especificar)'
+  ]
+
   // Filtros de historial
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
@@ -112,7 +123,7 @@ function GuiasEntrada() {
         { header: 'Aprobado/Rechazado Por', dataKey: 'aprobador' },
       ]
       const rows = guias.map(g => ({
-        numero_guia: g.numero_guia_sunagro || '-',
+        numero_guia: g.numero_guia_sunagro || (g.motivo_sin_guia ? `Reg. Interno (${g.motivo_sin_guia})` : 'Sin Guía'),
         fecha: g.fecha ? new Date(g.fecha + 'T00:00:00').toLocaleDateString('es-VE') : '-',
         vocera: g.vocera_nombre || '-',
         estado: g.estado || '-',
@@ -126,7 +137,11 @@ function GuiasEntrada() {
       })
     } catch (err) {
       console.error('Error exportando PDF:', err)
-      notifyError('Error', 'No se pudo generar el reporte PDF')
+      if (err.message === 'DATOS_INSTITUCION_FALTANTES') {
+        notifyError('Datos del plantel requeridos', 'Debe registrar los datos del plantel en el módulo "Datos del Plantel" para poder generar reportes.')
+      } else {
+        notifyError('Error', 'No se pudo generar el reporte PDF')
+      }
     } finally {
       setExporting(false)
     }
@@ -209,6 +224,17 @@ function GuiasEntrada() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    // Validar excepción si no hay guía SUNAGRO
+    const sinGuia = !formData.numero_guia_sunagro.trim()
+    if (sinGuia && !motivoSinGuia) {
+      notifyWarning('Motivo requerido', 'Si no ingresa Nº de Guía SUNAGRO, debe seleccionar un motivo legal')
+      return
+    }
+    if (sinGuia && motivoSinGuia === 'Otro (especificar)' && !observacionesExtra.trim()) {
+      notifyWarning('Detalle requerido', 'Especifique el motivo por el cual no se dispone de la guía')
+      return
+    }
+
     if (detalles.length === 0) {
       notifyWarning('Campo requerido', 'Debe agregar al menos un rubro')
       return
@@ -249,20 +275,22 @@ function GuiasEntrada() {
       const { data: guiaData, error: guiaError } = await supabase
         .from('guia_entrada')
         .insert({
-          numero_guia_sunagro: formData.numero_guia_sunagro,
+          numero_guia_sunagro: formData.numero_guia_sunagro.trim() || null,
           numero_guia_sisecal: formData.numero_guia_sisecal || null,
           fecha: formData.fecha,
           vocera_nombre: formData.vocera_nombre,
           telefono_vocera: formData.telefono_operadora + formData.telefono_numero,
           notas: formData.notas || null,
           created_by: user.id,
-          estado: 'Pendiente'
+          estado: 'Pendiente',
+          motivo_sin_guia: !formData.numero_guia_sunagro.trim() ? motivoSinGuia : null,
+          observaciones_extra: (!formData.numero_guia_sunagro.trim() && motivoSinGuia === 'Otro (especificar)') ? observacionesExtra : null
         })
         .select()
         .single()
 
       if (guiaError) {
-        if (guiaError.message.includes('unique_numero_guia_sunagro') || guiaError.code === '23505') {
+        if (guiaError.message.includes('idx_guia_sunagro_unica') || guiaError.code === '23505') {
           notifyError('Guía duplicada', `Ya existe una guía con el número SUNAGRO "${formData.numero_guia_sunagro}"`)
           setLoading(false)
           return
@@ -289,7 +317,8 @@ function GuiasEntrada() {
 
       if (inputError) throw inputError
 
-      notifySuccess('Guía registrada', `Guía #${formData.numero_guia_sunagro} registrada. Estado: Pendiente de aprobación. El inventario se actualizará cuando el Director la apruebe.`)
+      const guiaLabel = formData.numero_guia_sunagro.trim() || 'Registro Interno'
+      notifySuccess('Guía registrada', `Guía ${guiaLabel} registrada. Estado: Pendiente de aprobación. El inventario se actualizará cuando el Director la apruebe.`)
 
       resetForm()
       loadGuias()
@@ -312,6 +341,8 @@ function GuiasEntrada() {
       notas: ''
     })
     setDetalles([])
+    setMotivoSinGuia('')
+    setObservacionesExtra('')
     setShowForm(false)
   }
 
@@ -430,21 +461,20 @@ function GuiasEntrada() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>
-                      Nº Guía SUNAGRO <span className="text-red-500 ml-1">●</span>
+                      Nº Guía SUNAGRO <span style={{ color: '#94a3b8', fontWeight: '400', fontSize: '0.8rem' }}>(Opcional)</span>
                     </label>
                     <input
                       type="text"
                       name="numero_guia_sunagro"
                       value={formData.numero_guia_sunagro}
                       onChange={handleInputChange}
-                      required
                       inputMode="numeric"
                       pattern="[0-9]*"
                       placeholder="Ej: 91"
                       style={{
                         width: '100%',
                         padding: '0.65rem',
-                        border: '2px solid #ddd',
+                        border: formData.numero_guia_sunagro ? '2px solid #10b981' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '0.95rem'
                       }}
@@ -453,7 +483,7 @@ function GuiasEntrada() {
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>
-                      Nº Guía SISECAL
+                      Nº Guía SISECAL <span style={{ color: '#94a3b8', fontWeight: '400', fontSize: '0.8rem' }}>(Opcional)</span>
                     </label>
                     <input
                       type="text"
@@ -561,6 +591,59 @@ function GuiasEntrada() {
                     </div>
                   </div>
                 </div>
+
+                {/* Bloque de Excepción: se muestra cuando no hay Nº SUNAGRO */}
+                {!formData.numero_guia_sunagro.trim() && (
+                  <div style={{
+                    marginTop: '0.25rem',
+                    marginBottom: '1.25rem',
+                    padding: '1rem 1.25rem',
+                    background: '#FFFBEB',
+                    border: '1px solid #FDE68A',
+                    borderRadius: '8px'
+                  }}>
+                    <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', color: '#92400e', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <AlertTriangle className="w-4 h-4" /> Registro de Excepción: Indique por qué no hay Nº de Guía
+                    </p>
+                    <select
+                      value={motivoSinGuia}
+                      onChange={(e) => setMotivoSinGuia(e.target.value)}
+                      required
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '0.6rem',
+                        border: '1px solid #FDE68A',
+                        borderRadius: '6px',
+                        fontSize: '0.9rem',
+                        background: 'white'
+                      }}
+                    >
+                      <option value="">Seleccione un motivo legal...</option>
+                      {opcionesMotivo.map(opcion => (
+                        <option key={opcion} value={opcion}>{opcion}</option>
+                      ))}
+                    </select>
+                    {motivoSinGuia === 'Otro (especificar)' && (
+                      <input
+                        type="text"
+                        value={observacionesExtra}
+                        onChange={(e) => setObservacionesExtra(e.target.value)}
+                        placeholder="Especifique el motivo..."
+                        required
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          marginTop: '0.75rem',
+                          padding: '0.6rem',
+                          border: '1px solid #FDE68A',
+                          borderRadius: '6px',
+                          fontSize: '0.9rem'
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>
@@ -965,9 +1048,42 @@ function GuiasEntrada() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <div>
                     <h4 style={{ margin: '0 0 0.5rem 0' }}>
-                      Guía SUNAGRO #{guia.numero_guia_sunagro}
+                      {guia.numero_guia_sunagro ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.25rem 0.75rem',
+                          background: '#d1fae5',
+                          color: '#065f46',
+                          borderRadius: '6px',
+                          fontSize: '0.95rem',
+                          fontWeight: '700'
+                        }}>
+                          <CheckCircle className="w-4 h-4" /> Guía SUNAGRO #{guia.numero_guia_sunagro}
+                        </span>
+                      ) : (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.25rem 0.75rem',
+                          background: '#fef3c7',
+                          color: '#92400e',
+                          borderRadius: '6px',
+                          fontSize: '0.95rem',
+                          fontWeight: '700'
+                        }}>
+                          <AlertTriangle className="w-4 h-4" /> Registro Interno (Sin Guía)
+                        </span>
+                      )}
                       {guia.numero_guia_sisecal && ` | SISECAL ${guia.numero_guia_sisecal}`}
                     </h4>
+                    {!guia.numero_guia_sunagro && guia.motivo_sin_guia && (
+                      <div style={{ fontSize: '0.8rem', color: '#92400e', marginBottom: '0.35rem', paddingLeft: '0.25rem' }}>
+                        Motivo: {guia.motivo_sin_guia}{guia.observaciones_extra ? ` — ${guia.observaciones_extra}` : ''}
+                      </div>
+                    )}
                     <div className="flex items-center flex-wrap gap-x-2 gap-y-1" style={{ fontSize: '0.9rem', color: '#64748b' }}>
                       <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(guia.fecha).toLocaleDateString('es-VE')}</span>
                       <span>|</span>

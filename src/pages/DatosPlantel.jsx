@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, getUserData } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError } from '../utils/notifications'
-import { Building2, Pencil, Save, X, Upload, MapPin, User, Hash, Mail, Image, ShieldAlert, Globe } from 'lucide-react'
+import { Building2, Pencil, Save, X, Upload, MapPin, User, Hash, Mail, Image as ImageIcon, ShieldAlert, Globe } from 'lucide-react'
 
 // ── Estados de Venezuela para el select ──
 const ESTADOS_VENEZUELA = [
@@ -17,12 +17,26 @@ const RIF_REGEX = /^[JG]-\d{8}-\d$/
 const DEA_REGEX = /^[OPS][DN]\d{8}$/
 
 function formatRifInput(raw) {
-  // Strip non-alphanumeric
-  let v = raw.toUpperCase().replace(/[^JG0-9-]/g, '')
-  // Auto-format: L-XXXXXXXX-X
-  const digits = v.replace(/[^0-9]/g, '')
-  const letter = v.match(/^[JG]/) ? v[0] : ''
-  if (!letter) return v.slice(0, 1)
+  // 1. Strip everything except J, G, and digits
+  const clean = raw.toUpperCase().replace(/[^JG0-9]/g, '')
+  if (!clean) return ''
+
+  // 2. Extract the leading letter (must be J or G)
+  let letter = ''
+  let digitStart = 0
+  if ('JG'.includes(clean[0])) {
+    letter = clean[0]
+    digitStart = 1
+  } else {
+    // No valid letter yet — show only digits typed so far (max 9)
+    return clean.slice(0, 9)
+  }
+
+  // 3. Extract up to 9 digits after the letter
+  const digits = clean.slice(digitStart).replace(/[^0-9]/g, '').slice(0, 9)
+
+  // 4. Rebuild progressively: L → L- → L-XXXXXXXX → L-XXXXXXXX-X
+  if (digits.length === 0) return letter
   if (digits.length <= 8) return `${letter}-${digits}`
   return `${letter}-${digits.slice(0, 8)}-${digits.slice(8, 9)}`
 }
@@ -59,9 +73,9 @@ function DatosPlantel() {
         .from('institucion')
         .select('*')
         .eq('id', 1)
-        .single()
+        .maybeSingle()
       if (error) throw error
-      setInstitucion(data)
+      setInstitucion(data) // null if table is empty — handled by optional chaining
     } catch (error) {
       console.error('Error cargando datos del plantel:', error)
     } finally {
@@ -144,7 +158,7 @@ function DatosPlantel() {
   })
 
   const handleCintilloChange = (e) => handleImagePick(e, {
-    maxW: 2000, maxH: 500, label: 'El cintillo',
+    maxW: 3000, maxH: 800, label: 'El cintillo',
     onAccept: (file) => { setCintilloFile(file); setCintilloPreview(URL.createObjectURL(file)) }
   })
 
@@ -192,8 +206,7 @@ function DatosPlantel() {
 
       const { error } = await supabase
         .from('institucion')
-        .update({ ...formData, logo_url, cintillo_url, updated_at: new Date().toISOString() })
-        .eq('id', 1)
+        .upsert({ id: 1, ...formData, logo_url, cintillo_url, updated_at: new Date().toISOString() })
 
       if (error) throw error
       notifySuccess('Datos actualizados', 'Los datos del plantel se guardaron correctamente')
@@ -289,12 +302,17 @@ function DatosPlantel() {
           </div>
 
           {/* Cintillo / Membrete preview */}
-          {institucion?.cintillo_url && (
-            <div className="mt-6 pt-4 border-t border-gray-100">
-              <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-2">Membrete para Reportes</p>
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <p className="text-xs text-slate-500 uppercase tracking-wide font-medium mb-2">Membrete para Reportes</p>
+            {institucion?.cintillo_url ? (
               <img src={institucion.cintillo_url} alt="Membrete institucional" className="w-full h-16 object-contain rounded-lg border border-gray-100" />
-            </div>
-          )}
+            ) : (
+              <div className="w-full h-16 rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center gap-2">
+                <ImageIcon className="w-5 h-5 text-slate-300" />
+                <span className="text-xs text-slate-400">Sin membrete cargado</span>
+              </div>
+            )}
+          </div>
 
           {/* Botón Editar (solo Dev) */}
           <div className="mt-6 pt-4 border-t border-gray-100">
@@ -433,7 +451,7 @@ function DatosPlantel() {
                 ) : (
                   <div className="w-full h-24 rounded-lg bg-white border-2 border-dashed border-orange-300 flex items-center justify-center group-hover:border-orange-400 transition-colors">
                     <div className="flex flex-col items-center gap-1 text-slate-400">
-                      <Image className="w-8 h-8" />
+                      <ImageIcon className="w-8 h-8" />
                       <span className="text-xs">Click para subir cintillo</span>
                     </div>
                   </div>
@@ -443,7 +461,7 @@ function DatosPlantel() {
                 </div>
                 <input type="file" accept="image/*" onChange={handleCintilloChange} className="hidden" />
               </label>
-              <p className="text-xs text-slate-400 mt-1">Imagen rectangular para encabezado de PDFs. Máx. 2 MB · 2000 × 500 px.</p>
+              <p className="text-xs text-slate-400 mt-1">Imagen rectangular para encabezado de PDFs. Máx. 2 MB · 3000 × 800 px.</p>
             </div>
 
             {/* ── Footer del modal ── */}

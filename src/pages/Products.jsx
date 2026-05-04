@@ -336,7 +336,11 @@ function Products() {
       }
     } catch (err) {
       console.error('Error exportando PDF:', err)
-      notifyError('Error', 'No se pudo generar el reporte PDF')
+      if (err.message === 'DATOS_INSTITUCION_FALTANTES') {
+        notifyError('Datos del plantel requeridos', 'Debe registrar los datos del plantel en el módulo "Datos del Plantel" para poder generar reportes.')
+      } else {
+        notifyError('Error', 'No se pudo generar el reporte PDF')
+      }
     } finally {
       setExporting(false)
     }
@@ -344,7 +348,7 @@ function Products() {
 
   const getStockBadge = (stock) => {
     const base = 'px-2 py-0.5 text-xs font-medium rounded-full'
-    if (stock === 0) return <span className={`${base} bg-red-100 text-red-800`}>AGOTADO</span>
+    if (stock === 0) return <span className={`${base} bg-red-100 text-red-800`}>SIN STOCK</span>
     if (stock <= 10) return <span className={`${base} bg-red-50 text-red-600`}>BAJO</span>
     if (stock < 50) return <span className={`${base} bg-yellow-50 text-yellow-700`}>MEDIO</span>
     return <span className={`${base} bg-green-50 text-green-700`}>SUFICIENTE</span>

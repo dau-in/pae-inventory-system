@@ -16,18 +16,23 @@ function Layout() {
   // Heartbeat: registrar actividad e IP cada 2 minutos
   useEffect(() => {
     let intervalId = null
-    let userIp = ''
     let userId = null
+    let cachedIp = sessionStorage.getItem('pae_user_ip') || ''
 
-    const fetchIp = async () => {
+    const fetchIpOnce = async () => {
+      // Si ya tenemos IP cacheada en esta sesión, no volver a consultar
+      if (cachedIp) return
+
       try {
         const response = await fetch('https://api.ipify.org?format=json')
         const data = await response.json()
-        userIp = data.ip || ''
-      } catch (error) {
-        console.error('Error obteniendo IP:', error)
-        userIp = ''
+        cachedIp = data.ip || 'Desconocida'
+      } catch {
+        // Adblockers, CORS o rate limits — fallback silencioso
+        cachedIp = 'Desconocida'
       }
+
+      sessionStorage.setItem('pae_user_ip', cachedIp)
     }
 
     const sendHeartbeat = async () => {
@@ -39,15 +44,15 @@ function Layout() {
         if (!userId) return
         await supabase
           .from('users')
-          .update({ last_seen: new Date().toISOString(), last_ip: userIp })
+          .update({ last_seen: new Date().toISOString(), last_ip: cachedIp })
           .eq('id_user', userId)
-      } catch (error) {
-        console.error('Error enviando heartbeat:', error)
+      } catch {
+        // Heartbeat silencioso — no bloquear la app
       }
     }
 
     const startHeartbeat = async () => {
-      await fetchIp()
+      await fetchIpOnce()
       await sendHeartbeat()
       intervalId = setInterval(sendHeartbeat, 2 * 60 * 1000)
     }

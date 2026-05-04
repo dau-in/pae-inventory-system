@@ -306,7 +306,11 @@ function RegistroDiario() {
       })
     } catch (err) {
       console.error('Error exportando PDF:', err)
-      notifyError('Error', 'No se pudo generar el reporte PDF')
+      if (err.message === 'DATOS_INSTITUCION_FALTANTES') {
+        notifyError('Datos del plantel requeridos', 'Debe registrar los datos del plantel en el módulo "Datos del Plantel" para poder generar reportes.')
+      } else {
+        notifyError('Error', 'No se pudo generar el reporte PDF')
+      }
     } finally {
       setExporting(false)
     }

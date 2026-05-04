@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, getCurrentUser } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, notifyWarning, notifyInfo } from '../utils/notifications'
-import { Lock, CheckSquare, CheckCircle, Calendar, User, FileText, Package, Lightbulb, XCircle, Clock } from 'lucide-react'
+import { Lock, CheckSquare, CheckCircle, Calendar, User, FileText, Package, Lightbulb, XCircle, Clock, AlertTriangle } from 'lucide-react'
 
 function AprobarGuias() {
   const [loading, setLoading] = useState(true)
@@ -98,7 +98,7 @@ function AprobarGuias() {
 
       if (error) throw error
 
-      notifySuccess('Guía aprobada', `Guía #${guiaSeleccionada.numero_guia_sunagro} aprobada. ${data.productos_procesados} rubros actualizados en inventario.`)
+      notifySuccess('Guía aprobada', `Guía ${guiaSeleccionada.numero_guia_sunagro ? '#' + guiaSeleccionada.numero_guia_sunagro : '(Registro Interno)'} aprobada. ${data.productos_procesados} rubros actualizados en inventario.`)
 
       cerrarModal()
       loadGuiasPendientes()
@@ -135,7 +135,7 @@ function AprobarGuias() {
 
       if (error) throw error
 
-      notifyInfo('Guía rechazada', `Guía #${guiaSeleccionada.numero_guia_sunagro} rechazada. Motivo: ${comentarios}`)
+      notifyInfo('Guía rechazada', `Guía ${guiaSeleccionada.numero_guia_sunagro ? '#' + guiaSeleccionada.numero_guia_sunagro : '(Registro Interno)'} rechazada. Motivo: ${comentarios}`)
 
       cerrarModal()
       loadGuiasPendientes()
@@ -208,7 +208,35 @@ function AprobarGuias() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
                     <h3 style={{ margin: 0 }}>
-                      Guía SUNAGRO #{guia.numero_guia_sunagro}
+                      {guia.numero_guia_sunagro ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.25rem 0.75rem',
+                          background: '#d1fae5',
+                          color: '#065f46',
+                          borderRadius: '6px',
+                          fontSize: '1rem',
+                          fontWeight: '700'
+                        }}>
+                          <CheckCircle className="w-4 h-4" /> Guía SUNAGRO #{guia.numero_guia_sunagro}
+                        </span>
+                      ) : (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.25rem 0.75rem',
+                          background: '#fef3c7',
+                          color: '#92400e',
+                          borderRadius: '6px',
+                          fontSize: '1rem',
+                          fontWeight: '700'
+                        }}>
+                          <AlertTriangle className="w-4 h-4" /> Registro Interno (Sin Guía)
+                        </span>
+                      )}
                     </h3>
                     <span style={{
                       padding: '0.25rem 0.75rem',
@@ -231,6 +259,20 @@ function AprobarGuias() {
                   {guia.numero_guia_sisecal && (
                     <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
                       SISECAL: {guia.numero_guia_sisecal}
+                    </div>
+                  )}
+                  {!guia.numero_guia_sunagro && guia.motivo_sin_guia && (
+                    <div style={{
+                      marginTop: '0.5rem',
+                      padding: '0.5rem 0.75rem',
+                      background: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      color: '#92400e'
+                    }}>
+                      <strong>Motivo de excepción:</strong> {guia.motivo_sin_guia}
+                      {guia.observaciones_extra && <span> — {guia.observaciones_extra}</span>}
                     </div>
                   )}
                 </div>
@@ -439,7 +481,7 @@ function AprobarGuias() {
               {accion === 'aprobar' ? (
                 <>
                   <p>
-                    Está a punto de aprobar la guía <strong>#{guiaSeleccionada.numero_guia_sunagro}</strong>.
+                    Está a punto de aprobar la guía <strong>{guiaSeleccionada.numero_guia_sunagro ? `#${guiaSeleccionada.numero_guia_sunagro}` : '(Registro Interno)'}</strong>.
                   </p>
                   <p>
                     <strong>Esta acción:</strong>
@@ -453,7 +495,7 @@ function AprobarGuias() {
               ) : (
                 <>
                   <p>
-                    Está a punto de rechazar la guía <strong>#{guiaSeleccionada.numero_guia_sunagro}</strong>.
+                    Está a punto de rechazar la guía <strong>{guiaSeleccionada.numero_guia_sunagro ? `#${guiaSeleccionada.numero_guia_sunagro}` : '(Registro Interno)'}</strong>.
                   </p>
                   <p>
                     El inventario NO se actualizará y el creador será notificado.
