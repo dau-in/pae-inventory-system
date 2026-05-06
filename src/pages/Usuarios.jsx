@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { supabase, getUserData, getCurrentUser, createUserAccount, changeUserPassword } from '../supabaseClient'
 import { notifySuccess, notifyError, notifyWarning, notifyInfo, confirmDanger, confirmAction } from '../utils/notifications'
 import GlobalLoader from '../components/GlobalLoader'
@@ -12,6 +13,7 @@ function Usuarios() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [currentUserName, setCurrentUserName] = useState('')
   const [showForm, setShowForm] = useState(false)
+  useBodyScrollLock(showForm)
   const [editingUser, setEditingUser] = useState(null)
   const [formData, setFormData] = useState({
     email: '',
@@ -350,7 +352,6 @@ function Usuarios() {
       {showForm && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) resetForm() }}
         >
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
             {/* — Encabezado del modal — */}

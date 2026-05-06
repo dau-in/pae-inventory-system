@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { supabase, getUserData } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError } from '../utils/notifications'
@@ -14,7 +15,7 @@ const ESTADOS_VENEZUELA = [
 
 // ── Helpers de validación ──
 const RIF_REGEX = /^[JG]-\d{8}-\d$/
-const DEA_REGEX = /^[OPS][DN]\d{8}$/
+const DEA_REGEX = /^[A-Z0-9-]{8,15}$/i
 
 function formatRifInput(raw) {
   // 1. Strip everything except J, G, and digits
@@ -42,18 +43,14 @@ function formatRifInput(raw) {
 }
 
 function formatDeaInput(raw) {
-  let v = raw.toUpperCase().replace(/[^A-Z0-9]/g, '')
-  // First char: O, P, S
-  if (v.length >= 1 && !'OPS'.includes(v[0])) v = v.slice(1)
-  // Second char: D, N
-  if (v.length >= 2 && !'DN'.includes(v[1])) v = v.slice(0, 1) + v.slice(2)
-  return v.slice(0, 10)
+  return raw.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 15)
 }
 
 function DatosPlantel() {
   const [institucion, setInstitucion] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
+  useBodyScrollLock(editing)
   const [saving, setSaving] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({})
@@ -88,6 +85,8 @@ function DatosPlantel() {
       nombre: institucion?.nombre || '',
       rif: institucion?.rif || '',
       codigo_dea: institucion?.codigo_dea || '',
+      codigo_administrativo: institucion?.codigo_administrativo || '',
+      codigo_estadistico: institucion?.codigo_estadistico || '',
       direccion: institucion?.direccion || '',
       director_actual: institucion?.director_actual || '',
       estado: institucion?.estado || '',
@@ -117,6 +116,8 @@ function DatosPlantel() {
     const { name, value } = e.target
     if (name === 'rif') return setFormData(prev => ({ ...prev, rif: formatRifInput(value) }))
     if (name === 'codigo_dea') return setFormData(prev => ({ ...prev, codigo_dea: formatDeaInput(value) }))
+    if (name === 'codigo_administrativo') return setFormData(prev => ({ ...prev, codigo_administrativo: value.replace(/[^0-9]/g, '').slice(0, 12) }))
+    if (name === 'codigo_estadistico') return setFormData(prev => ({ ...prev, codigo_estadistico: value.replace(/[^0-9]/g, '').slice(0, 8) }))
     if (name === 'codigo_postal') return setFormData(prev => ({ ...prev, codigo_postal: value.replace(/[^0-9]/g, '').slice(0, 5) }))
     setFormData(prev => ({ ...prev, [name]: value }))
   }
@@ -188,7 +189,7 @@ function DatosPlantel() {
       return
     }
     if (formData.codigo_dea && !DEA_REGEX.test(formData.codigo_dea) && formData.codigo_dea.length > 0) {
-      notifyError('Formato de Código DEA inválido', 'Use el formato: OD06591801 (2 letras + 8 números)')
+      notifyError('Formato de Código DEA inválido', 'Debe contener entre 8 y 15 caracteres alfanuméricos o guiones.')
       return
     }
     if (formData.correo_electronico && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo_electronico)) {
@@ -253,7 +254,9 @@ function DatosPlantel() {
         <div className="bg-pae-peach-light px-6 py-8 text-center border-b border-orange-100">
           <div className="mb-4">
             {institucion?.logo_url ? (
-              <img src={institucion.logo_url} alt="Logo institucional" className="w-32 h-32 rounded-2xl object-cover mx-auto shadow-sm" />
+              <div className="border border-gray-200 shadow-sm rounded-2xl p-2 flex justify-center items-center mx-auto w-fit">
+                <img src={institucion.logo_url} alt="Logo institucional" className="w-40 h-40 object-contain" />
+              </div>
             ) : (
               <div className="w-32 h-32 rounded-2xl bg-white border border-gray-200 flex items-center justify-center mx-auto shadow-sm">
                 <Building2 className="w-12 h-12 text-slate-300" />
@@ -283,6 +286,8 @@ function DatosPlantel() {
             {/* Identidad */}
             <InfoRow icon={Hash} label="RIF" value={institucion?.rif} />
             <InfoRow icon={Hash} label="Código DEA" value={institucion?.codigo_dea} />
+            <InfoRow icon={Hash} label="Código Administrativo" value={institucion?.codigo_administrativo} />
+            <InfoRow icon={Hash} label="Código Estadístico" value={institucion?.codigo_estadistico} />
             {/* Contacto */}
             <InfoRow icon={User} label="Director(a) Actual" value={institucion?.director_actual} />
             <InfoRow icon={Mail} label="Correo Electrónico" value={institucion?.correo_electronico} />
@@ -292,7 +297,7 @@ function DatosPlantel() {
               <div className="flex-1">
                 <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Dirección Física</p>
                 <p className="text-slate-800 font-medium">
-                  {institucion?.direccion_detallada || institucion?.direccion || '—'}
+                  {institucion?.direccion || '—'}
                 </p>
                 {fullAddress && (
                   <p className="text-sm text-gray-500 mt-1">{fullAddress}</p>
@@ -343,7 +348,6 @@ function DatosPlantel() {
     {editing && (
       <div
         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-        onClick={(e) => { if (e.target === e.currentTarget) cancelEdit() }}
       >
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
@@ -393,8 +397,18 @@ function DatosPlantel() {
               </div>
               <div className="form-group">
                 <label>Código DEA</label>
-                <input className="w-full" type="text" name="codigo_dea" value={formData.codigo_dea} onChange={handleChange} placeholder="OD06591801" maxLength={10} style={{ textTransform: 'uppercase' }} />
-                <p className="text-xs text-slate-400 mt-1">Formato: 2 letras + 8 números (ej. OD06591801)</p>
+                <input className="w-full" type="text" name="codigo_dea" value={formData.codigo_dea} onChange={handleChange} placeholder="OD06591801" maxLength={15} style={{ textTransform: 'uppercase' }} />
+                <p className="text-xs text-slate-400 mt-1">Alfanumérico, 8-15 caracteres (ej. OD06591801)</p>
+              </div>
+              <div className="form-group">
+                <label>Código Administrativo</label>
+                <input className="w-full" type="text" name="codigo_administrativo" value={formData.codigo_administrativo} onChange={handleChange} placeholder="123456789" maxLength={12} />
+                <p className="text-xs text-slate-400 mt-1">Solo números (~9 dígitos)</p>
+              </div>
+              <div className="form-group">
+                <label>Código Estadístico</label>
+                <input className="w-full" type="text" name="codigo_estadistico" value={formData.codigo_estadistico} onChange={handleChange} placeholder="123456" maxLength={8} />
+                <p className="text-xs text-slate-400 mt-1">Solo números (~6 dígitos)</p>
               </div>
               <div className="form-group md:col-span-2">
                 <label>Director(a) Actual</label>

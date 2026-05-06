@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { supabase, getUserData, getLocalDate } from '../supabaseClient'
 import { notifySuccess, notifyError, confirmDanger, confirmAction } from '../utils/notifications'
 import { exportPDF } from '../utils/pdfGenerator'
@@ -11,6 +12,7 @@ function Products() {
   const [categories, setCategories] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  useBodyScrollLock(showForm)
   const [categoryError, setCategoryError] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [userName, setUserName] = useState('')
@@ -452,7 +454,6 @@ function Products() {
       {activeTab === 'general' && showForm && userRole !== 3 && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) resetForm() }}
         >
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-orange-100" style={{ background: '#FFF7ED' }}>

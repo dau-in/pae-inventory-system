@@ -48,7 +48,7 @@ async function fetchInstitutionalData() {
   try {
     const { data, error } = await supabase
       .from('institucion')
-      .select('nombre, rif, codigo_dea, direccion, director_actual, logo_url, cintillo_url')
+      .select('nombre, rif, codigo_dea, codigo_administrativo, codigo_estadistico, direccion, direccion_detallada, parroquia, municipio, estado, codigo_postal, director_actual, logo_url, cintillo_url')
       .eq('id', 1)
       .maybeSingle()
 
@@ -121,12 +121,12 @@ function drawWatermark(doc, logoBase64) {
 
   const pageWidth  = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
-  const wmSize = 90
+  const wmSize = 95
   const wmX = (pageWidth  - wmSize) / 2
   const wmY = (pageHeight - wmSize) / 2
 
   try {
-    const gState = new doc.GState({ opacity: 0.12 })
+    const gState = new doc.GState({ opacity: 0.16 })
     doc.saveGraphicsState()
     doc.setGState(gState)
     doc.addImage(logoBase64, 'PNG', wmX, wmY, wmSize, wmSize)
@@ -166,13 +166,19 @@ function drawLetterhead(doc, institucional, logoBase64, cintilloBase64) {
       currentY += 6
     }
 
-    // RIF y Código DEA
+    // RIF y códigos institucionales
     const legalParts = []
     if (institucional?.rif && institucional.rif !== 'J-00000000-0') {
       legalParts.push(`RIF: ${institucional.rif}`)
     }
-    if (institucional?.codigo_dea && institucional.codigo_dea !== 'CÓDIGO-DEA') {
-      legalParts.push(`Código DEA: ${institucional.codigo_dea}`)
+    if (institucional?.codigo_dea) {
+      legalParts.push(`DEA: ${institucional.codigo_dea}`)
+    }
+    if (institucional?.codigo_administrativo) {
+      legalParts.push(`Cód. Adm: ${institucional.codigo_administrativo}`)
+    }
+    if (institucional?.codigo_estadistico) {
+      legalParts.push(`Cód. Est: ${institucional.codigo_estadistico}`)
     }
 
     if (legalParts.length > 0) {
@@ -183,13 +189,22 @@ function drawLetterhead(doc, institucional, logoBase64, cintilloBase64) {
       currentY += 5
     }
 
-    // Dirección
-    if (institucional?.direccion && institucional.direccion.trim() !== '') {
+    // Dirección completa integrada
+    const fullAddrA = [
+      institucional?.direccion,
+      institucional?.direccion_detallada,
+      institucional?.parroquia ? `Parroquia ${institucional.parroquia}` : null,
+      institucional?.municipio ? `Municipio ${institucional.municipio}` : null,
+      institucional?.estado,
+      institucional?.codigo_postal ? `CP ${institucional.codigo_postal}` : null
+    ].filter(Boolean).join(', ')
+
+    if (fullAddrA) {
       doc.setFont('helvetica', 'italic')
-      doc.setFontSize(FONT_SIZES.schoolAddr)
+      doc.setFontSize(fullAddrA.length > 90 ? 8 : FONT_SIZES.schoolAddr)
       doc.setTextColor(...COLORS.schoolAddress)
       const maxW = pageWidth - MARGINS.left - MARGINS.right
-      const lines = doc.splitTextToSize(institucional.direccion, maxW)
+      const lines = doc.splitTextToSize(fullAddrA, maxW)
       lines.forEach((line) => {
         doc.text(line, pageWidth / 2, currentY, { align: 'center' })
         currentY += 3.5
@@ -238,13 +253,19 @@ function drawLetterhead(doc, institucional, logoBase64, cintilloBase64) {
       currentY += 6
     }
 
-    // RIF y Código DEA
+    // RIF y códigos institucionales
     const legalParts = []
     if (institucional?.rif && institucional.rif !== 'J-00000000-0') {
       legalParts.push(`RIF: ${institucional.rif}`)
     }
-    if (institucional?.codigo_dea && institucional.codigo_dea !== 'CÓDIGO-DEA') {
-      legalParts.push(`Código DEA: ${institucional.codigo_dea}`)
+    if (institucional?.codigo_dea) {
+      legalParts.push(`DEA: ${institucional.codigo_dea}`)
+    }
+    if (institucional?.codigo_administrativo) {
+      legalParts.push(`Cód. Adm: ${institucional.codigo_administrativo}`)
+    }
+    if (institucional?.codigo_estadistico) {
+      legalParts.push(`Cód. Est: ${institucional.codigo_estadistico}`)
     }
 
     if (legalParts.length > 0) {
@@ -255,13 +276,22 @@ function drawLetterhead(doc, institucional, logoBase64, cintilloBase64) {
       currentY += 5
     }
 
-    // Dirección
-    if (institucional?.direccion && institucional.direccion.trim() !== '') {
+    // Dirección completa integrada
+    const fullAddrB = [
+      institucional?.direccion,
+      institucional?.direccion_detallada,
+      institucional?.parroquia ? `Parroquia ${institucional.parroquia}` : null,
+      institucional?.municipio ? `Municipio ${institucional.municipio}` : null,
+      institucional?.estado,
+      institucional?.codigo_postal ? `CP ${institucional.codigo_postal}` : null
+    ].filter(Boolean).join(', ')
+
+    if (fullAddrB) {
       doc.setFont('helvetica', 'italic')
-      doc.setFontSize(FONT_SIZES.schoolAddr)
+      doc.setFontSize(fullAddrB.length > 90 ? 8 : FONT_SIZES.schoolAddr)
       doc.setTextColor(...COLORS.schoolAddress)
       const maxW = pageWidth - textStartX - MARGINS.right
-      const lines = doc.splitTextToSize(institucional.direccion, maxW)
+      const lines = doc.splitTextToSize(fullAddrB, maxW)
       lines.forEach((line) => {
         doc.text(line, textCenterX, currentY, { align: 'center' })
         currentY += 3.5

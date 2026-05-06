@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { supabase, getUserData, getLocalDate } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError } from '../utils/notifications'
@@ -11,6 +12,7 @@ function RegistroDiario() {
   const [registros, setRegistros] = useState([])
   const [productosDisponibles, setProductosDisponibles] = useState([])
   const [showForm, setShowForm] = useState(false)
+  useBodyScrollLock(showForm)
   const [userRole, setUserRole] = useState(null)
   const [userName, setUserName] = useState('')
   const [exporting, setExporting] = useState(false)
@@ -351,7 +353,6 @@ function RegistroDiario() {
       {showForm && userRole !== 3 && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) resetForm() }}
         >
           <div
             className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"

@@ -92,7 +92,7 @@ function Layout() {
         
         <nav className="sidebar-nav">
           <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
-            <LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard
+            <LayoutDashboard className="w-5 h-5 mr-3" /> Panel de Control
           </NavLink>
           <NavLink to="/productos" className={({ isActive }) => isActive ? 'active' : ''} onClick={() => setMenuOpen(false)}>
             <Package className="w-5 h-5 mr-3" /> Inventario

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { supabase, getUserData } from '../supabaseClient'
 import GlobalLoader from '../components/GlobalLoader'
 import { notifySuccess, notifyError, confirmDanger } from '../utils/notifications'
@@ -11,6 +12,7 @@ function Porciones() {
   const [products, setProducts] = useState([])
   const [ultimaAsistencia, setUltimaAsistencia] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  useBodyScrollLock(showForm)
   const [editingPorcion, setEditingPorcion] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [userName, setUserName] = useState('')
@@ -267,7 +269,6 @@ function Porciones() {
       {showForm && userRole !== 3 && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) resetForm() }}
         >
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" style={{ display: 'flex', flexDirection: 'column' }}>
             {/* — Encabezado del modal — */}
