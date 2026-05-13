@@ -24,3 +24,11 @@ src_backup_/
 .agent/
 CONTEXT.md
 skills-lock.json
+
+# Supabase — dumps sensibles y regenerables
+supabase/data_dump.sql
+supabase/schema_dump.sql
+supabase/.temp/
+
+# Planes de implementación y archivos temporales del agente
+implementation_plan*

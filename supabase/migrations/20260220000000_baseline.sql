@@ -1,11 +1,15 @@
 -- ====================================================================
+-- MIGRACIÓN: 20260220000000_baseline
 -- PROYECTO: PAE Inventory System
--- DESCRIPCIÓN: Esquema de Base de Datos, Triggers y Políticas RBAC
--- MOTOR: PostgreSQL (Supabase)
--- ÚLTIMA ACTUALIZACIÓN: 2026-05-03
+-- DESCRIPCIÓN: Esquema completo de Base de Datos — Tablas, Funciones,
+--              Triggers, Políticas RLS y Vistas del sistema.
+-- MOTOR: PostgreSQL 15+ (Supabase)
+-- FECHA DE CREACIÓN: 2026-02-20
 -- ====================================================================
--- NOTA: Este archivo es la fuente de verdad de la estructura de la BD.
--- Se mantiene para documentación, control de versiones y sincronización.
+-- NOTA: Esta migración baseline contiene la estructura completa del
+-- sistema. Ejecutar sobre un proyecto Supabase limpio.
+-- Para migraciones incrementales, ver archivos posteriores en esta
+-- carpeta ordenados cronológicamente.
 -- ====================================================================
 
 
@@ -245,7 +249,9 @@ CREATE TABLE public.institucion (
     direccion_detallada TEXT DEFAULT '',
     codigo_postal       TEXT DEFAULT '',
     correo_electronico  TEXT DEFAULT '',
-    cintillo_url        TEXT DEFAULT ''
+    cintillo_url        TEXT DEFAULT '',
+    codigo_administrativo TEXT DEFAULT '',
+    codigo_estadistico    TEXT DEFAULT ''
 );
 
 COMMENT ON COLUMN public.institucion.estado IS 'Estado geográfico del plantel (ej. Guárico, Miranda)';
@@ -256,35 +262,10 @@ COMMENT ON COLUMN public.institucion.direccion_detallada IS 'Dirección detallad
 COMMENT ON COLUMN public.institucion.codigo_postal IS 'Código postal del plantel';
 COMMENT ON COLUMN public.institucion.correo_electronico IS 'Correo electrónico institucional de contacto';
 COMMENT ON COLUMN public.institucion.cintillo_url IS 'URL del cintillo/membrete institucional para encabezados de PDFs';
+COMMENT ON COLUMN public.institucion.codigo_administrativo IS 'Código administrativo de la institución (solo dígitos, ~9 caracteres)';
+COMMENT ON COLUMN public.institucion.codigo_estadistico IS 'Código estadístico de la institución (solo dígitos, ~6 caracteres)';
 
--- --------------------------------------------------------------------
--- Tabla: guia_entrada_backup (respaldo de migración)
--- --------------------------------------------------------------------
-CREATE TABLE public.guia_entrada_backup (
-    id_guia         INTEGER,
-    numero_guia     TEXT,
-    codigo_sunagro  TEXT,
-    fecha           DATE,
-    inspector       TEXT,
-    vocera          TEXT,
-    telefono_vocera TEXT,
-    notas           TEXT,
-    created_by      UUID,
-    created_at      TIMESTAMPTZ
-);
 
--- --------------------------------------------------------------------
--- Tabla: input_backup (respaldo de migración)
--- --------------------------------------------------------------------
-CREATE TABLE public.input_backup (
-    id_input    INTEGER,
-    id_guia     INTEGER,
-    id_product  INTEGER,
-    amount      NUMERIC(10,2),
-    unit_amount INTEGER,
-    fecha       DATE,
-    created_at  TIMESTAMPTZ
-);
 
 
 -- ####################################################################
@@ -295,7 +276,7 @@ CREATE TABLE public.input_backup (
 -- Función: get_user_role()
 -- Devuelve el id_rol del usuario autenticado actualmente
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.get_user_role() RETURNS INTEGER
+CREATE OR REPLACE FUNCTION public.get_user_role() RETURNS INTEGER
     LANGUAGE sql SECURITY DEFINER AS $$
     SELECT id_rol FROM users WHERE id_user = auth.uid();
 $$;
@@ -304,7 +285,7 @@ $$;
 -- Función: update_updated_at_column()
 -- Actualiza automáticamente la columna updated_at al modificar un registro
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.update_updated_at_column() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.update_updated_at_column() RETURNS TRIGGER
     LANGUAGE plpgsql AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -317,7 +298,7 @@ $$;
 -- Descuenta stock del producto al registrar una salida.
 -- Lanza excepción si el stock es insuficiente.
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.update_stock_on_output() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.update_stock_on_output() RETURNS TRIGGER
     LANGUAGE plpgsql AS $$
 DECLARE
     v_stock_actual NUMERIC(10,2);
@@ -345,7 +326,7 @@ $$;
 -- Trigger genérico de auditoría para INSERT, UPDATE, DELETE.
 -- Registra acción, tabla, ID del registro y contenido JSON en audit_log.
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.log_audit() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.log_audit() RETURNS TRIGGER
     LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     record_id_value INTEGER;
@@ -418,7 +399,7 @@ $$;
 -- Trigger BEFORE INSERT en users. Impide la creación de usuarios
 -- con rol Director (1) o Desarrollador (4) sin autorización.
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.protect_director_insert() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.protect_director_insert() RETURNS TRIGGER
     LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     v_actor_role INTEGER;
@@ -509,7 +490,7 @@ $$;
 --   3. Suma cantidades al stock de cada producto asociado
 --   4. Registra la acción en audit_log
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.aprobar_guia(p_id_guia INTEGER, p_comentarios TEXT DEFAULT NULL) RETURNS JSON
+CREATE OR REPLACE FUNCTION public.aprobar_guia(p_id_guia INTEGER, p_comentarios TEXT DEFAULT NULL) RETURNS JSON
     LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     v_input_record RECORD;
@@ -572,7 +553,7 @@ COMMENT ON FUNCTION public.aprobar_guia(INTEGER, TEXT) IS 'Aprueba una guía pen
 -- Rechaza una guía pendiente con motivo obligatorio.
 -- El inventario NO se modifica.
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.rechazar_guia(p_id_guia INTEGER, p_motivo TEXT) RETURNS JSON
+CREATE OR REPLACE FUNCTION public.rechazar_guia(p_id_guia INTEGER, p_motivo TEXT) RETURNS JSON
     LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
     v_guia_info RECORD;
@@ -627,7 +608,7 @@ COMMENT ON FUNCTION public.rechazar_guia(INTEGER, TEXT) IS 'Rechaza una guía pe
 -- Devuelve los lotes de inventario que vencen dentro de los próximos
 -- p_dias días (por defecto 30). Usado en el Dashboard.
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.get_lotes_por_vencer(p_dias INTEGER DEFAULT 30)
+CREATE OR REPLACE FUNCTION public.get_lotes_por_vencer(p_dias INTEGER DEFAULT 30)
     RETURNS TABLE (
         id_product       INTEGER,
         product_name     TEXT,
@@ -667,7 +648,7 @@ $$;
 --   4. Inserta salidas (output) que disparan descuento de stock
 --   5. Registra auditoría
 -- --------------------------------------------------------------------
-CREATE FUNCTION public.procesar_operacion_diaria(
+CREATE OR REPLACE FUNCTION public.procesar_operacion_diaria(
     p_fecha DATE, p_turno VARCHAR, p_asistencia INTEGER, p_rubros INTEGER[]
 ) RETURNS JSON
     LANGUAGE plpgsql SECURITY DEFINER AS $$
@@ -906,7 +887,7 @@ CREATE POLICY "Menu detalle: Todos pueden ver"                ON public.menu_det
 CREATE POLICY "Menu detalle: Admin y Cocinera pueden modificar" ON public.menu_detalle USING (get_user_role() IN (1, 2, 4));
 
 -- ---- audit_log ----
-CREATE POLICY "Audit: Todos pueden ver" ON public.audit_log FOR SELECT USING (true);
+CREATE POLICY "Audit: Solo Director y Dev pueden ver" ON public.audit_log FOR SELECT USING (get_user_role() IN (1, 4));
 
 -- ---- institucion ----
 CREATE POLICY "institucion_select" ON public.institucion FOR SELECT TO authenticated USING (true);

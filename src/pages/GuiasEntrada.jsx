@@ -23,7 +23,13 @@ function GuiasEntrada() {
     vocera_nombre: '',
     telefono_operadora: '0414',
     telefono_numero: '',
-    notas: ''
+    notas: '',
+    entregado_por: '',
+    entregado_por_ci: '',
+    origen: '',
+    vocera_ci: '',
+    plantel_destino: '',
+    matricula_referencia: ''
   })
   const [detalles, setDetalles] = useState([])
 
@@ -286,7 +292,13 @@ function GuiasEntrada() {
           created_by: user.id,
           estado: 'Pendiente',
           motivo_sin_guia: !formData.numero_guia_sunagro.trim() ? motivoSinGuia : null,
-          observaciones_extra: (!formData.numero_guia_sunagro.trim() && motivoSinGuia === 'Otro (especificar)') ? observacionesExtra : null
+          observaciones_extra: (!formData.numero_guia_sunagro.trim() && motivoSinGuia === 'Otro (especificar)') ? observacionesExtra : null,
+          entregado_por: formData.entregado_por.trim() || null,
+          entregado_por_ci: formData.entregado_por_ci.trim() || null,
+          origen: formData.origen.trim() || null,
+          vocera_ci: formData.vocera_ci.trim() || null,
+          plantel_destino: formData.plantel_destino.trim() || null,
+          matricula_referencia: formData.matricula_referencia ? parseInt(formData.matricula_referencia) : null
         })
         .select()
         .single()
@@ -340,7 +352,13 @@ function GuiasEntrada() {
       vocera_nombre: '',
       telefono_operadora: '0414',
       telefono_numero: '',
-      notas: ''
+      notas: '',
+      entregado_por: '',
+      entregado_por_ci: '',
+      origen: '',
+      vocera_ci: '',
+      plantel_destino: '',
+      matricula_referencia: ''
     })
     setDetalles([])
     setMotivoSinGuia('')
@@ -588,6 +606,90 @@ function GuiasEntrada() {
                           fontSize: '0.95rem',
                           letterSpacing: '0.05em'
                         }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ═══ Campos de Trazabilidad del Despacho (opcionales) ═══ */}
+                <div style={{
+                  marginTop: '0.5rem',
+                  marginBottom: '1.25rem',
+                  padding: '1rem 1.25rem',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}>
+                  <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>
+                    Datos del Despacho <span style={{ color: '#94a3b8', fontWeight: '400', fontSize: '0.8rem' }}>(Opcional)</span>
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Entregado por</label>
+                      <input
+                        type="text"
+                        name="entregado_por"
+                        value={formData.entregado_por}
+                        onChange={handleInputChange}
+                        placeholder="Nombre del transportista"
+                        style={{ width: '100%', padding: '0.65rem', border: '1px solid #ddd', borderRadius: '8px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>C.I. del Entregador</label>
+                      <input
+                        type="text"
+                        name="entregado_por_ci"
+                        value={formData.entregado_por_ci}
+                        onChange={handleInputChange}
+                        inputMode="numeric"
+                        placeholder="Ej: 16549670"
+                        style={{ width: '100%', padding: '0.65rem', border: '1px solid #ddd', borderRadius: '8px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>C.I. de la Vocera</label>
+                      <input
+                        type="text"
+                        name="vocera_ci"
+                        value={formData.vocera_ci}
+                        onChange={handleInputChange}
+                        inputMode="numeric"
+                        placeholder="Ej: 20609921"
+                        style={{ width: '100%', padding: '0.65rem', border: '1px solid #ddd', borderRadius: '8px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Centro de Origen</label>
+                      <input
+                        type="text"
+                        name="origen"
+                        value={formData.origen}
+                        onChange={handleInputChange}
+                        placeholder="Ej: Centro de distribución Julio Cesar Salas"
+                        style={{ width: '100%', padding: '0.65rem', border: '1px solid #ddd', borderRadius: '8px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Plantel Destino</label>
+                      <input
+                        type="text"
+                        name="plantel_destino"
+                        value={formData.plantel_destino}
+                        onChange={handleInputChange}
+                        placeholder="Si aplica"
+                        style={{ width: '100%', padding: '0.65rem', border: '1px solid #ddd', borderRadius: '8px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Matrícula de Referencia</label>
+                      <input
+                        type="number"
+                        name="matricula_referencia"
+                        value={formData.matricula_referencia}
+                        onChange={handleInputChange}
+                        placeholder="Ej: 61"
+                        style={{ width: '100%', padding: '0.65rem', border: '1px solid #ddd', borderRadius: '8px' }}
                       />
                     </div>
                   </div>
@@ -1088,7 +1190,9 @@ function GuiasEntrada() {
                     <div className="flex items-center flex-wrap gap-x-2 gap-y-1" style={{ fontSize: '0.9rem', color: '#64748b' }}>
                       <span className="inline-flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(guia.fecha).toLocaleDateString('es-VE')}</span>
                       <span>|</span>
-                      <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Recibió: {guia.vocera_nombre}</span>
+                      <span className="inline-flex items-center gap-1"><User className="w-4 h-4" /> Recibió: {guia.vocera_nombre}{guia.vocera_ci ? ` (C.I. ${guia.vocera_ci})` : ''}</span>
+                      {guia.entregado_por && <><span>|</span><span>Entregó: {guia.entregado_por}{guia.entregado_por_ci ? ` (C.I. ${guia.entregado_por_ci})` : ''}</span></>}
+                      {guia.origen && <><span>|</span><span>Origen: {guia.origen}</span></>}
                     </div>
                   </div>
                   {getEstadoBadge(guia.estado)}

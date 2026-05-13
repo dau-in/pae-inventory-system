@@ -17,6 +17,7 @@ import DatosPlantel from './pages/DatosPlantel'
 // Importar componentes
 import Layout from './components/Layout'
 import PrivateRoute from './components/PrivateRoute'
+import RoleRoute from './components/RoleRoute'
 import GlobalLoader from './components/GlobalLoader'
 
 function App() {
@@ -70,10 +71,14 @@ function App() {
             <Route path="/guias-entrada" element={<GuiasEntrada />} />
             <Route path="/registro-diario" element={<RegistroDiario />} />
             <Route path="/porciones" element={<Porciones />} />
-            <Route path="/auditoria" element={<AuditLog />} />
-            <Route path="/aprobar-guias" element={<AprobarGuias />} />
-            <Route path="/usuarios" element={<Usuarios />} />
             <Route path="/datos-plantel" element={<DatosPlantel />} />
+
+            {/* Rutas restringidas — solo Director (1) y Desarrollador (4) */}
+            <Route element={<RoleRoute allowedRoles={[1, 4]} />}>
+              <Route path="/auditoria" element={<AuditLog />} />
+              <Route path="/aprobar-guias" element={<AprobarGuias />} />
+              <Route path="/usuarios" element={<Usuarios />} />
+            </Route>
           </Route>
         </Route>
 

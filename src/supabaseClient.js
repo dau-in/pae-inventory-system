@@ -103,9 +103,8 @@ export const createUserAccount = async (email, password, username, idRol) => {
 }
 
 // Helper para cambiar la contraseña de un usuario.
-// SEGURIDAD: Solo el propio usuario puede cambiar su contraseña desde el frontend.
-// Cambiar la contraseña de OTRO usuario requiere una Edge Function server-side
-// con service_role key (nunca expuesta al cliente).
+// - Propia contraseña: usa supabase.auth.updateUser (directo)
+// - Contraseña de otro: invoca Edge Function server-side (service_role key segura)
 export const changeUserPassword = async (userId, newPassword) => {
   const currentUser = await getCurrentUser()
 
@@ -116,12 +115,20 @@ export const changeUserPassword = async (userId, newPassword) => {
     return data
   }
 
-  // Cambiar contraseña de OTRO usuario no es posible sin service_role key.
-  // Esta operación debe implementarse como Edge Function en Supabase.
-  throw new Error(
-    'Cambiar la contraseña de otro usuario requiere permisos de servidor. ' +
-    'Esta operación debe realizarse desde el panel de Supabase (Authentication > Users) ' +
-    'o mediante una Edge Function configurada con service_role key.'
-  )
+  // Cambiar contraseña de OTRO usuario — delegar a Edge Function
+  const { data, error } = await supabase.functions.invoke('update-user-password', {
+    body: { userId, newPassword }
+  })
+
+  if (error) {
+    throw new Error(error.message || 'Error al invocar la función de cambio de contraseña')
+  }
+
+  // La Edge Function retorna { error: "..." } en su JSON si algo falla internamente
+  if (data?.error) {
+    throw new Error(data.error)
+  }
+
+  return data
 }
 

@@ -31,7 +31,11 @@ function RegistroDiario() {
     hora: new Date().toTimeString().slice(0, 5),
     turno: 'Almuerzo',
     asistencia_total: '',
-    notas: ''
+    notas: '',
+    menu_descripcion: '',
+    asistencia_varones: '',
+    asistencia_hembras: '',
+    ingesta_total: ''
   })
   const [rubrosSeleccionados, setRubrosSeleccionados] = useState([])
 
@@ -163,7 +167,11 @@ function RegistroDiario() {
           .from('registro_diario')
           .update({
             asistencia_total: parseInt(formData.asistencia_total),
-            notas: formData.notas || null
+            notas: formData.notas || null,
+            menu_descripcion: formData.menu_descripcion.trim() || null,
+            asistencia_varones: formData.asistencia_varones ? parseInt(formData.asistencia_varones) : null,
+            asistencia_hembras: formData.asistencia_hembras ? parseInt(formData.asistencia_hembras) : null,
+            ingesta_total: formData.ingesta_total ? parseInt(formData.ingesta_total) : null
           })
           .eq('id_registro', editingRecord.id_registro)
 
@@ -224,6 +232,16 @@ function RegistroDiario() {
 
       if (error) throw error
 
+      // Guardar campos demográficos y menú en el registro creado por el RPC
+      if (data?.id_registro) {
+        await supabase.from('registro_diario').update({
+          menu_descripcion: formData.menu_descripcion.trim() || null,
+          asistencia_varones: formData.asistencia_varones ? parseInt(formData.asistencia_varones) : null,
+          asistencia_hembras: formData.asistencia_hembras ? parseInt(formData.asistencia_hembras) : null,
+          ingesta_total: formData.ingesta_total ? parseInt(formData.ingesta_total) : null
+        }).eq('id_registro', data.id_registro)
+      }
+
       notifySuccess('Operación registrada', data?.mensaje || 'Se procesó correctamente')
       resetForm()
       loadRegistros()
@@ -263,7 +281,11 @@ function RegistroDiario() {
       hora: record.created_at ? new Date(record.created_at).toTimeString().slice(0, 5) : '12:00',
       turno: record.turno,
       asistencia_total: String(record.asistencia_total),
-      notas: record.notas || ''
+      notas: record.notas || '',
+      menu_descripcion: record.menu_descripcion || '',
+      asistencia_varones: record.asistencia_varones != null ? String(record.asistencia_varones) : '',
+      asistencia_hembras: record.asistencia_hembras != null ? String(record.asistencia_hembras) : '',
+      ingesta_total: record.ingesta_total != null ? String(record.ingesta_total) : ''
     })
     setRubrosSeleccionados([])
     setShowForm(true)
@@ -275,7 +297,11 @@ function RegistroDiario() {
       hora: new Date().toTimeString().slice(0, 5),
       turno: 'Almuerzo',
       asistencia_total: '',
-      notas: ''
+      notas: '',
+      menu_descripcion: '',
+      asistencia_varones: '',
+      asistencia_hembras: '',
+      ingesta_total: ''
     })
     setRubrosSeleccionados([])
     setEditingRecord(null)
@@ -447,6 +473,53 @@ function RegistroDiario() {
                       onChange={(e) => setFormData(prev => ({ ...prev, asistencia_total: e.target.value }))}
                       placeholder="Ingrese el total de alumnos asistentes"
                       required
+                    />
+                  </div>
+
+                  {/* Descripción del Menú */}
+                  <div className="form-group md:col-span-2">
+                    <label style={{ fontSize: '0.9rem' }}>Menú del Día</label>
+                    <input
+                      className="w-full"
+                      type="text"
+                      value={formData.menu_descripcion}
+                      onChange={(e) => setFormData(prev => ({ ...prev, menu_descripcion: e.target.value }))}
+                      placeholder="Ej: Arroz con pollo, ensalada"
+                    />
+                  </div>
+
+                  {/* Demografía */}
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.9rem' }}>Masculino (M)</label>
+                    <input
+                      className="w-full"
+                      type="number"
+                      min="0"
+                      value={formData.asistencia_varones}
+                      onChange={(e) => setFormData(prev => ({ ...prev, asistencia_varones: e.target.value }))}
+                      placeholder="Varones atendidos"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.9rem' }}>Femenino (F)</label>
+                    <input
+                      className="w-full"
+                      type="number"
+                      min="0"
+                      value={formData.asistencia_hembras}
+                      onChange={(e) => setFormData(prev => ({ ...prev, asistencia_hembras: e.target.value }))}
+                      placeholder="Hembras atendidas"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.9rem' }}>Matrícula / Ingesta Total</label>
+                    <input
+                      className="w-full"
+                      type="number"
+                      min="0"
+                      value={formData.ingesta_total}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ingesta_total: e.target.value }))}
+                      placeholder="Matrícula de referencia"
                     />
                   </div>
 
@@ -673,7 +746,7 @@ function RegistroDiario() {
                   <th>Fecha</th>
                   <th>Turno</th>
                   <th>Asistencia</th>
-                  <th>Registrado por</th>
+                  <th>Menú / Registrado</th>
                   <th>Notas</th>
                   <th>Acciones</th>
                 </tr>
@@ -693,8 +766,16 @@ function RegistroDiario() {
                           {isAnulado && <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">Anulado</span>}
                         </div>
                       </td>
-                      <td>{registro.asistencia_total} alumnos</td>
-                      <td className="text-sm">{registro.creador?.username || '-'}</td>
+                      <td>
+                        <div>{registro.asistencia_total} alumnos</div>
+                        {(registro.asistencia_varones != null || registro.asistencia_hembras != null) && (
+                          <div className="text-xs text-slate-400 mt-0.5">M: {registro.asistencia_varones ?? '-'} | F: {registro.asistencia_hembras ?? '-'}</div>
+                        )}
+                      </td>
+                      <td className="text-sm">
+                        {registro.menu_descripcion ? <div className="font-medium text-slate-700">{registro.menu_descripcion}</div> : null}
+                        <div className="text-slate-400">{registro.creador?.username || '-'}</div>
+                      </td>
                       <td className="text-sm">{isAnulado ? <span className="text-red-500 italic">{registro.notas}</span> : (registro.notas || '-')}</td>
                       <td>
                         <div className="flex items-center gap-2">
