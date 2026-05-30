@@ -24,7 +24,7 @@ if (!SERVICE_ROLE_KEY) {
 function findDbContainer() {
   try {
     const output = execSync(
-      'docker ps --filter "ancestor=supabase/postgres" --format "{{.ID}}"',
+      'docker ps --filter "name=supabase_db" --format "{{.ID}}"',
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
     ).trim()
 
