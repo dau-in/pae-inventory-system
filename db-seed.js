@@ -133,20 +133,27 @@ async function seed() {
   }
 
   // ================================================================
-  // 4. INSERTAR CATEGORÍAS
+  // 4. INSERTAR CATÁLOGO OFICIAL DE CATEGORÍAS
   // ================================================================
-  console.log('📦 Insertando categorías...')
+  console.log('📦 Insertando catálogo oficial de categorías...')
   const { data: categories, error: catError } = await supabase.from('category').insert([
-    { category_name: 'Cereales y Granos', description: 'Arroz, pasta, harina, lentejas, caraotas' },
-    { category_name: 'Proteínas', description: 'Pollo, carne, huevos, atún, sardinas' },
-    { category_name: 'Aceites y Grasas', description: 'Aceite vegetal, mantequilla, margarina' },
+    { category_name: 'Aceites / Grasas' },
+    { category_name: 'Azúcar / Dulces' },
+    { category_name: 'Bebidas' },
+    { category_name: 'Carnes / Proteínas' },
+    { category_name: 'Frutas / Verduras' },
+    { category_name: 'Granos / Cereales' },
+    { category_name: 'Lácteos / Huevos' },
+    { category_name: 'Otros Alimenticios' },
+    { category_name: 'Panadería / Pastelería' },
+    { category_name: 'Pescados / Mariscos' },
   ]).select()
 
   if (catError) {
     console.error('❌ Error insertando categorías:', catError.message)
     process.exit(1)
   }
-  console.log(`   ✅ ${categories.length} categorías insertadas\n`)
+  console.log(`   ✅ ${categories.length} categorías oficiales insertadas\n`)
 
   const catMap = new Map()
   for (const c of categories) catMap.set(c.category_name, c.id_category)
@@ -156,10 +163,10 @@ async function seed() {
   // ================================================================
   console.log('🏷️  Insertando productos...')
   const { data: products, error: prodError } = await supabase.from('product').insert([
-    { product_name: 'Arroz', stock: 0, unit_measure: 'Kg', description: 'Arroz blanco tipo 1', id_category: catMap.get('Cereales y Granos') },
-    { product_name: 'Pasta', stock: 0, unit_measure: 'Kg', description: 'Pasta larga tipo espagueti', id_category: catMap.get('Cereales y Granos') },
-    { product_name: 'Pollo', stock: 0, unit_measure: 'Kg', description: 'Pollo entero beneficiado', id_category: catMap.get('Proteínas') },
-    { product_name: 'Aceite', stock: 0, unit_measure: 'Lt', description: 'Aceite vegetal comestible', id_category: catMap.get('Aceites y Grasas') },
+    { product_name: 'Arroz', stock: 0, unit_measure: 'Kg', description: 'Arroz blanco tipo 1', id_category: catMap.get('Granos / Cereales') },
+    { product_name: 'Pasta', stock: 0, unit_measure: 'Kg', description: 'Pasta larga tipo espagueti', id_category: catMap.get('Granos / Cereales') },
+    { product_name: 'Pollo', stock: 0, unit_measure: 'Kg', description: 'Pollo entero beneficiado', id_category: catMap.get('Carnes / Proteínas') },
+    { product_name: 'Aceite', stock: 0, unit_measure: 'Lt', description: 'Aceite vegetal comestible', id_category: catMap.get('Aceites / Grasas') },
   ]).select()
 
   if (prodError) {
@@ -328,7 +335,7 @@ async function seed() {
   console.log(`   • 1 usuario Auth (${SEED_EMAIL})`)
   console.log('   • 4 roles (Director, Madre Procesadora, Viewer, Desarrollador)')
   console.log(`   • 1 perfil "${SEED_USERNAME}" con rol Desarrollador`)
-  console.log('   • 3 categorías')
+  console.log('   • 10 categorías oficiales del PAE')
   console.log('   • 4 productos con stock (Arroz 50, Pasta 30, Pollo 25, Aceite 20)')
   console.log('   • 1 guía de entrada aprobada con lotes FIFO')
   console.log('   • 4 recetas de porciones')
