@@ -8,7 +8,7 @@ Sistema de gestión de inventario para el **Programa de Alimentación Escolar (P
 - **Guías de Entrada**: Registro y flujo de aprobación (Pendiente → Aprobada/Rechazada) con actualización transaccional de inventario.
 - **Registro Diario**: Operaciones diarias por turno con descuento automático de stock y lotes.
 - **Dashboard**: Panel ejecutivo con estadísticas en tiempo real.
-- **RBAC (4 roles)**: Director, Madre Procesadora, Viewer y Desarrollador con políticas RLS en toda la BD.
+- **RBAC (4 roles)**: Director, Madre Procesadora, Supervisor y Desarrollador con políticas RLS en toda la BD.
 - **Auditoría**: Bitácora completa de todas las operaciones del sistema.
 - **Reportes**: Generación de reportes en Excel.
 - **PWA**: Instalable y con soporte offline.

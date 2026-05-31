@@ -104,7 +104,7 @@ async function seed() {
   const { error: rolError } = await supabase.from('rol').upsert([
     { id_rol: 1, rol_name: 'Director', description: 'CRUD total, aprobar/rechazar guías, gestión de usuarios, auditoría' },
     { id_rol: 2, rol_name: 'Madre Procesadora', description: 'Registrar guías, registro diario, porciones, inventario' },
-    { id_rol: 3, rol_name: 'Viewer', description: 'Solo lectura en todo. Sin botones de acción' },
+    { id_rol: 3, rol_name: 'Supervisor', description: 'Solo lectura en todo. Sin botones de acción' },
     { id_rol: 4, rol_name: 'Desarrollador', description: 'Todos los permisos del Director + acceso total' },
   ], { onConflict: 'id_rol' })
 
@@ -333,7 +333,7 @@ async function seed() {
   console.log('')
   console.log('📋 Datos insertados:')
   console.log(`   • 1 usuario Auth (${SEED_EMAIL})`)
-  console.log('   • 4 roles (Director, Madre Procesadora, Viewer, Desarrollador)')
+  console.log('   • 4 roles (Director, Madre Procesadora, Supervisor, Desarrollador)')
   console.log(`   • 1 perfil "${SEED_USERNAME}" con rol Desarrollador`)
   console.log('   • 10 categorías oficiales del PAE')
   console.log('   • 4 productos con stock (Arroz 50, Pasta 30, Pollo 25, Aceite 20)')
