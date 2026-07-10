@@ -1,18 +1,20 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase } from './supabaseClient'
 
 // Importar páginas
+// Login se importa estático (primera pantalla); el resto se divide en
+// chunks independientes que el navegador descarga al navegar a cada módulo
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Products from './pages/Products'
-import GuiasEntrada from './pages/GuiasEntrada'
-import RegistroDiario from './pages/RegistroDiario'
-import Porciones from './pages/Porciones'
-import AuditLog from './pages/AuditLog'
-import AprobarGuias from './pages/AprobarGuias'
-import Usuarios from './pages/Usuarios'
-import DatosPlantel from './pages/DatosPlantel'
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Products = lazy(() => import('./pages/Products'))
+const GuiasEntrada = lazy(() => import('./pages/GuiasEntrada'))
+const RegistroDiario = lazy(() => import('./pages/RegistroDiario'))
+const Porciones = lazy(() => import('./pages/Porciones'))
+const AuditLog = lazy(() => import('./pages/AuditLog'))
+const AprobarGuias = lazy(() => import('./pages/AprobarGuias'))
+const Usuarios = lazy(() => import('./pages/Usuarios'))
+const DatosPlantel = lazy(() => import('./pages/DatosPlantel'))
 
 // Importar componentes
 import Layout from './components/Layout'
@@ -56,6 +58,7 @@ function App() {
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Suspense fallback={<GlobalLoader />}>
       <Routes>
         {/* Ruta pública - Login */}
         <Route 
@@ -85,6 +88,7 @@ function App() {
         {/* Ruta por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+      </Suspense>
     </Router>
   )
 }
