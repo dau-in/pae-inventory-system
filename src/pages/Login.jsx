@@ -45,6 +45,8 @@ function Login() {
         errorMessage = 'Credenciales inv\u00E1lidas. Por favor, verifique su correo y contrase\u00F1a.'
       } else if (error.message === 'Email not confirmed') {
         errorMessage = 'Por favor, confirme su correo electr\u00F3nico antes de ingresar.'
+      } else if (error.message === 'Failed to fetch') {
+        errorMessage = 'No hay conexi\u00F3n con el servidor. Verifique su internet o intente de nuevo m\u00E1s tarde.'
       } else if (error.message) {
         errorMessage = error.message
       }

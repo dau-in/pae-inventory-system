@@ -92,3 +92,24 @@ h1, h2, h3, h4 {
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1.0); }
 }
+
+/* ── Estado de conexión: logo apagado que respira ── */
+@keyframes logo-dim-breathe {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.05); }
+}
+
+.connection-logo {
+  filter: grayscale(1);
+  animation: logo-dim-breathe 4s ease-in-out infinite;
+}
+
+/* ── Estado de conexión: toast flotante ── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.connection-toast {
+  animation: toast-in 300ms ease-out both;
+}

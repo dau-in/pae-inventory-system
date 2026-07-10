@@ -51,6 +51,15 @@ export const getUserData = async () => {
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut()
   if (error) console.error('Error al cerrar sesión:', error)
+
+  // Limpiar el caché de lecturas offline: cerrar sesión es la señal de que
+  // el usuario termina en este equipo; si otro rol entra después en el mismo
+  // dispositivo, no debe poder consultar datos cacheados del anterior
+  try {
+    await caches.delete('supabase-rest')
+  } catch {
+    // Cache Storage no disponible (navegador antiguo o contexto no seguro)
+  }
 }
 
 // Helper para obtener la fecha local en formato YYYY-MM-DD

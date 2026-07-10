@@ -9,6 +9,25 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['logo.png'],
+      workbox: {
+        // Caché de lecturas de la API (solo GET a /rest/v1/): con conexión
+        // opera normal (NetworkFirst); sin conexión sirve la última respuesta
+        // conocida para consulta. Las escrituras nunca se cachean ni encolan:
+        // en un sistema multiusuario deben requerir conexión.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' && url.pathname.startsWith('/rest/v1/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-rest',
+              networkTimeoutSeconds: 8,
+              expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'PAE Inventory System',
         short_name: 'PAE System',

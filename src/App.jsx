@@ -21,10 +21,15 @@ import Layout from './components/Layout'
 import PrivateRoute from './components/PrivateRoute'
 import RoleRoute from './components/RoleRoute'
 import GlobalLoader from './components/GlobalLoader'
+import ConnectionToast from './components/ConnectionToast'
+import ConnectionScreen from './components/ConnectionScreen'
+import { useConnectionStatus } from './hooks/useConnectionStatus'
 
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { status: connectionStatus, downSince, lastOkAt, retrySeconds } = useConnectionStatus()
+  const connectionDown = ['offline', 'server-down'].includes(connectionStatus)
 
   useEffect(() => {
     // Obtener sesión actual
@@ -60,10 +65,17 @@ function App() {
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Suspense fallback={<GlobalLoader />}>
       <Routes>
-        {/* Ruta pública - Login */}
-        <Route 
-          path="/login" 
-          element={!session ? <Login /> : <Navigate to="/" />} 
+        {/* Ruta pública - Login. Sin sesión no hay acción posible sin
+            conexión, así que se sustituye por la pantalla de estado */}
+        <Route
+          path="/login"
+          element={
+            !session
+              ? (connectionDown
+                  ? <ConnectionScreen status={connectionStatus} downSince={downSince} lastOkAt={lastOkAt} retrySeconds={retrySeconds} />
+                  : <Login />)
+              : <Navigate to="/" />
+          }
         />
 
         {/* Rutas privadas - requieren autenticación */}
@@ -89,6 +101,17 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       </Suspense>
+      {/* Indicador de conexión dentro del sistema: informa sin bloquear.
+          Solo con sesión activa — en el login la pantalla completa ya cubre */}
+      {session && (
+        <ConnectionToast
+          key={connectionStatus}
+          status={connectionStatus}
+          downSince={downSince}
+          lastOkAt={lastOkAt}
+          retrySeconds={retrySeconds}
+        />
+      )}
     </Router>
   )
 }

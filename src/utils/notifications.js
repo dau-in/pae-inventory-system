@@ -1,5 +1,15 @@
 import Swal from 'sweetalert2'
 
+// Traduce errores crudos de red ("Failed to fetch" y variantes según el
+// navegador) a un mensaje claro, acorde al monitoreo de conexión del sistema.
+// Cualquier otro texto pasa intacto.
+const humanizeNetworkError = (text) => {
+  if (typeof text === 'string' && /failed to fetch|networkerror|network request failed|load failed/i.test(text)) {
+    return 'Sin conexión con el servidor. La operación no se guardó — verifique su conexión e intente de nuevo.'
+  }
+  return text
+}
+
 export const notifySuccess = (title, text) => {
   return Swal.fire({
     icon: 'success',
@@ -13,7 +23,7 @@ export const notifyError = (title, text) => {
   return Swal.fire({
     icon: 'error',
     title,
-    text,
+    text: humanizeNetworkError(text),
     confirmButtonColor: '#ef4444'
   })
 }
